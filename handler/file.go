@@ -17,7 +17,7 @@ type IWriter interface {
 }
 
 type FileHandler struct {
-	fileWriter IWriter
+	FileWriter IWriter
 }
 
 func (s *FileHandler) format(record easylog.Record) string {

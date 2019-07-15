@@ -22,7 +22,7 @@ func TestLog(t *testing.T) {
 			t.Error(err)
 			return
 		}
-		DebugFileHandler := easylog.NewHandler(&FileHandler{fileWriter: dw})
+		DebugFileHandler := easylog.NewHandler(&FileHandler{FileWriter: dw})
 		DebugFileHandler.SetLevel(easylog.DEBUG)
 		DebugFileHandler.AddFilter(&filter.LevelEqualFilter{Level: easylog.DEBUG})
 
@@ -31,7 +31,7 @@ func TestLog(t *testing.T) {
 			t.Error(err)
 			return
 		}
-		FatalFileHandler := easylog.NewHandler(&FileHandler{fileWriter: fw})
+		FatalFileHandler := easylog.NewHandler(&FileHandler{FileWriter: fw})
 		FatalFileHandler.SetLevel(easylog.FATAL)
 		FatalFileHandler.AddFilter(&filter.LevelEqualFilter{Level: easylog.FATAL})
 
@@ -40,7 +40,7 @@ func TestLog(t *testing.T) {
 			t.Error(err)
 			return
 		}
-		WarnFileHandler := easylog.NewHandler(&FileHandler{fileWriter: ww})
+		WarnFileHandler := easylog.NewHandler(&FileHandler{FileWriter: ww})
 		WarnFileHandler.SetLevel(easylog.WARN)
 		WarnFileHandler.AddFilter(&filter.LevelEqualFilter{Level: easylog.WARN})
 
