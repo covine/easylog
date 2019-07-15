@@ -61,14 +61,14 @@ func (s *FileHandler) format(record easylog.Record) string {
 
 func (f *FileHandler) Handle(record easylog.Record) {
 	s := f.format(record)
-	if f.fileWriter != nil {
-		f.fileWriter.Write([]byte(s + "\n"))
+	if f.FileWriter != nil {
+		f.FileWriter.Write([]byte(s + "\n"))
 	}
 }
 
 func (f *FileHandler) Flush() {
-	if f.fileWriter != nil {
-		f.fileWriter.Flush()
+	if f.FileWriter != nil {
+		f.FileWriter.Flush()
 	}
 }
 
