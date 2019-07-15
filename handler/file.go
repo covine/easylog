@@ -1,9 +1,11 @@
 package handler
 
 import (
-	"container/list"
 	"fmt"
-	"sync"
+	"path"
+	"runtime"
+	"strconv"
+	"time"
 
 	"git.qutoutiao.net/govine/easylog"
 )
@@ -15,104 +17,53 @@ type IWriter interface {
 }
 
 type FileHandler struct {
-	level      easylog.Level
 	fileWriter IWriter
-	formatter  easylog.IFormatter
-	filters    *list.List
-	fMu        sync.RWMutex
 }
 
-func NewFileHandler(level easylog.Level, fileWriter IWriter) (*FileHandler, error) {
-	return &FileHandler{
-		level:      level,
-		fileWriter: fileWriter,
-		filters:    list.New(),
-	}, nil
-}
-
-func (f *FileHandler) AddFilter(ef easylog.IFilter) {
-	if ef == nil {
-		return
+func (s *FileHandler) format(record easylog.Record) string {
+	var prefix string
+	switch record.Level {
+	case easylog.FATAL:
+		prefix = "FATAL: "
+	case easylog.ERROR:
+		prefix = "ERROR: "
+	case easylog.WARNING:
+		prefix = "WARNING: "
+	case easylog.INFO:
+		prefix = "NOTICE: "
+	case easylog.DEBUG:
+		prefix = "DEBUG: "
+	default:
+		prefix = "UNKNOWN LEVEL: "
 	}
 
-	f.fMu.Lock()
-	defer f.fMu.Unlock()
-
-	find := false
-	for ele := f.filters.Front(); ele != nil; ele = ele.Next() {
-		filter, ok := ele.Value.(easylog.IFilter)
-		if ok && filter == ef {
-			find = true
-			break
+	var body string
+	var head string
+	if record.Level == easylog.INFO {
+		head = prefix + " " + time.Now().Format("2006-01-02 15:04:05") + " * "
+	} else {
+		_, file, line, ok := runtime.Caller(6)
+		if !ok {
+			file = "???"
+			line = 0
+		} else {
+			file = path.Base(file)
 		}
+		head = prefix + " " + time.Now().Format("2006-01-02 15:04:05") + " " + file + " [" + strconv.Itoa(line) + "] * "
 	}
-
-	if !find {
-		f.filters.PushBack(ef)
+	if record.Args != nil && len(record.Args) > 0 {
+		body = fmt.Sprintf(record.Msg, record.Args...)
+	} else {
+		body = record.Msg
 	}
-}
-
-func (f *FileHandler) RemoveFilter(ef easylog.IFilter) {
-	if ef == nil {
-		return
-	}
-
-	f.fMu.Lock()
-	defer f.fMu.Unlock()
-
-	var next *list.Element
-	for ele := f.filters.Front(); ele != nil; ele = next {
-		filter, ok := ele.Value.(easylog.IFilter)
-		if ok && filter == ef {
-			next = ele.Next()
-			f.filters.Remove(ele)
-		}
-	}
-}
-
-func (f *FileHandler) filter(record easylog.Record) bool {
-	for ele := f.filters.Front(); ele != nil; ele = ele.Next() {
-		filter, ok := ele.Value.(easylog.IFilter)
-		if ok && filter != nil {
-			if filter.Filter(record) == false {
-				return false
-			}
-		}
-	}
-	return true
-}
-
-func (f *FileHandler) SetLevel(level easylog.Level) {
-	if easylog.IsLevel(level) {
-		f.level = level
-	}
-}
-
-func (f *FileHandler) GetLevel() easylog.Level {
-	return f.level
-}
-
-func (f *FileHandler) SetFormatter(formatter easylog.IFormatter) {
-	if formatter != nil {
-		f.formatter = formatter
-	}
+	return head + body
 }
 
 func (f *FileHandler) Handle(record easylog.Record) {
-	if !f.filter(record) {
-		return
+	s := f.format(record)
+	if f.fileWriter != nil {
+		f.fileWriter.Write([]byte(s + "\n"))
 	}
-
-	s := record.Msg
-	if f.formatter != nil {
-		s = f.formatter.Format(record)
-	} else {
-		if record.Args != nil && len(record.Args) > 0 {
-			s = fmt.Sprintf(record.Msg, record.Args...)
-		}
-	}
-
-	f.fileWriter.Write([]byte(s + "\n"))
 }
 
 func (f *FileHandler) Flush() {

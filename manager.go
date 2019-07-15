@@ -29,18 +29,6 @@ func (m *manager) setRoot(root *Logger) {
 	m.root = root
 }
 
-func (m *manager) setLoggerClass() {
-
-}
-
-func (m *manager) setLogRecordFactory() {
-
-}
-
-func (m *manager) clearCache() {
-
-}
-
 func (m *manager) getLogger(name string) *Logger {
 	m.mu.RLock()
 	if l, ok := m.loggerMap[name]; ok && l != nil && !l.isPlaceholder {

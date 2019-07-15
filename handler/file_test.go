@@ -1,13 +1,10 @@
 package handler
 
 import (
+	"sync"
 	"testing"
 
-	"git.qutoutiao.net/govine/easylog/store"
-
 	"git.qutoutiao.net/govine/easylog/filter"
-
-	"git.qutoutiao.net/govine/easylog/formatter"
 
 	"git.qutoutiao.net/govine/easylog"
 	"git.qutoutiao.net/govine/easylog/writer"
@@ -25,11 +22,8 @@ func TestLog(t *testing.T) {
 			t.Error(err)
 			return
 		}
-		DebugFileHandler, err := NewFileHandler(easylog.DEBUG, dw)
-		if err != nil {
-			t.Error(err)
-		}
-		DebugFileHandler.SetFormatter(&formatter.SimpleFormatter{})
+		DebugFileHandler := easylog.NewHandler(&FileHandler{fileWriter: dw})
+		DebugFileHandler.SetLevel(easylog.DEBUG)
 		DebugFileHandler.AddFilter(&filter.LevelEqualFilter{Level: easylog.DEBUG})
 
 		fw, err := writer.NewRotateFileWriter(30, "./log/cpc.fatal", 409600)
@@ -37,11 +31,8 @@ func TestLog(t *testing.T) {
 			t.Error(err)
 			return
 		}
-		FatalFileHandler, err := NewFileHandler(easylog.FATAL, fw)
-		if err != nil {
-			t.Error(err)
-		}
-		FatalFileHandler.SetFormatter(&formatter.SimpleFormatter{})
+		FatalFileHandler := easylog.NewHandler(&FileHandler{fileWriter: fw})
+		FatalFileHandler.SetLevel(easylog.FATAL)
 		FatalFileHandler.AddFilter(&filter.LevelEqualFilter{Level: easylog.FATAL})
 
 		ww, err := writer.NewRotateFileWriter(30, "./log/cpc.warn", 409600)
@@ -49,11 +40,8 @@ func TestLog(t *testing.T) {
 			t.Error(err)
 			return
 		}
-		WarnFileHandler, err := NewFileHandler(easylog.WARN, ww)
-		if err != nil {
-			t.Error(err)
-		}
-		WarnFileHandler.SetFormatter(&formatter.SimpleFormatter{})
+		WarnFileHandler := easylog.NewHandler(&FileHandler{fileWriter: ww})
+		WarnFileHandler.SetLevel(easylog.WARN)
 		WarnFileHandler.AddFilter(&filter.LevelEqualFilter{Level: easylog.WARN})
 
 		l.AddHandler(DebugFileHandler)
@@ -69,51 +57,59 @@ func TestLog(t *testing.T) {
 		l.Fatal("fatal: %s", "test")
 		l.Flush()
 
-		s, err := store.NewStoreLogger()
-		if err != nil {
-			t.Error(err)
-			return
+		var w sync.WaitGroup
+		for i := 0; i < 10000; i++ {
+			w.Add(1)
+			go func(j int) {
+				defer w.Done()
+
+				s := easylog.GetSparkLogger()
+				s.SetLevel(easylog.DEBUG)
+				defer func() {
+					s.Flush()
+					s.Close()
+				}()
+
+				SDebugFileHandler := easylog.NewHandler(&StoreHandler{
+					fileWriter: dw,
+					logs:       make([]string, 0),
+					flushed:    false,
+				})
+				SDebugFileHandler.AddFilter(&filter.LevelEqualFilter{Level: easylog.DEBUG})
+
+				SFatalFileHandler := easylog.NewHandler(&StoreHandler{
+					fileWriter: fw,
+					logs:       make([]string, 0),
+					flushed:    false,
+				})
+				SFatalFileHandler.AddFilter(&filter.LevelEqualFilter{Level: easylog.FATAL})
+
+				SWarnFileHandler := easylog.NewHandler(&StoreHandler{
+					fileWriter: ww,
+					logs:       make([]string, 0),
+					flushed:    false,
+				})
+				SWarnFileHandler.AddFilter(&filter.LevelEqualFilter{Level: easylog.WARN})
+
+				s.AddHandler(SDebugFileHandler)
+				s.AddHandler(SFatalFileHandler)
+				s.AddHandler(SWarnFileHandler)
+
+				s.Debug("s debug: %s", "test")
+				s.Info("s info: %s", "test")
+				s.Warn("s warn: %s", "test")
+				s.Warning("s warning: %s", "test")
+				s.Error("s error: %s", "test")
+				s.Fatal("s fatal: %s", "test")
+			}(i)
 		}
-		s.SetLevel(easylog.DEBUG)
-
-		SDebugFileHandler, err := NewStoreHandler(easylog.DEBUG, dw)
-		if err != nil {
-			t.Error(err)
-		}
-		SDebugFileHandler.SetFormatter(&formatter.SimpleFormatter{})
-		SDebugFileHandler.AddFilter(&filter.LevelEqualFilter{Level: easylog.DEBUG})
-
-		SFatalFileHandler, err := NewStoreHandler(easylog.FATAL, fw)
-		if err != nil {
-			t.Error(err)
-		}
-		SFatalFileHandler.SetFormatter(&formatter.SimpleFormatter{})
-		SFatalFileHandler.AddFilter(&filter.LevelEqualFilter{Level: easylog.FATAL})
-
-		SWarnFileHandler, err := NewStoreHandler(easylog.WARN, ww)
-		if err != nil {
-			t.Error(err)
-		}
-		SWarnFileHandler.SetFormatter(&formatter.SimpleFormatter{})
-		SWarnFileHandler.AddFilter(&filter.LevelEqualFilter{Level: easylog.WARN})
-
-		s.AddHandler(SDebugFileHandler)
-		s.AddHandler(SFatalFileHandler)
-		s.AddHandler(SWarnFileHandler)
-
-		s.Debug("s debug: %s", "test")
-		s.Info("s info: %s", "test")
-		s.Warn("s warn: %s", "test")
-		s.Warning("s warning: %s", "test")
-		s.Error("s error: %s", "test")
-		s.Fatal("s fatal: %s", "test")
-		s.Flush()
+		w.Wait()
 
 		dw.Close()
 		fw.Close()
 		ww.Close()
 
-		s.Close()
+		l.Flush()
 		l.Close()
 	})
 }

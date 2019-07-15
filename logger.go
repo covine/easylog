@@ -1,23 +1,17 @@
 package easylog
 
-import (
-	"container/list"
-	"sync"
-)
+import "time"
 
 type Logger struct {
+	Filters
+	Handlers
+
 	name      string
 	manager   *manager
 	level     Level
 	disabled  bool
 	parent    *Logger
 	propagate bool
-
-	filters *list.List
-	fMu     sync.RWMutex
-
-	handlers *list.List
-	hMu      sync.RWMutex
 
 	isPlaceholder  bool
 	placeholderMap map[*Logger]interface{}
@@ -30,8 +24,6 @@ func newRootLogger() *Logger {
 		level:          WARNING,
 		parent:         nil,
 		propagate:      true,
-		filters:        list.New(),
-		handlers:       list.New(),
 		disabled:       false,
 		isPlaceholder:  false,
 		placeholderMap: make(map[*Logger]interface{}),
@@ -45,8 +37,6 @@ func newPlaceholder() *Logger {
 		level:          WARNING,
 		parent:         nil,
 		propagate:      true,
-		filters:        list.New(),
-		handlers:       list.New(),
 		disabled:       false,
 		isPlaceholder:  true,
 		placeholderMap: make(map[*Logger]interface{}),
@@ -60,8 +50,19 @@ func newLogger(name string) *Logger {
 		level:          WARNING,
 		parent:         nil,
 		propagate:      true,
-		filters:        list.New(),
-		handlers:       list.New(),
+		disabled:       false,
+		isPlaceholder:  false,
+		placeholderMap: make(map[*Logger]interface{}),
+	}
+}
+
+func newSparkLogger() *Logger {
+	return &Logger{
+		name:           "",
+		manager:        nil,
+		level:          WARNING,
+		parent:         nil,
+		propagate:      false,
 		disabled:       false,
 		isPlaceholder:  false,
 		placeholderMap: make(map[*Logger]interface{}),
@@ -82,100 +83,12 @@ func (l *Logger) SetLevel(level Level) {
 	}
 }
 
+func (l *Logger) setParent(p *Logger) {
+	l.parent = p
+}
+
 func (l *Logger) SetPropagate(propagate bool) {
 	l.propagate = propagate
-}
-
-func (l *Logger) AddFilter(f IFilter) {
-	if f == nil {
-		return
-	}
-
-	l.fMu.Lock()
-	defer l.fMu.Unlock()
-
-	find := false
-	for ele := l.filters.Front(); ele != nil; ele = ele.Next() {
-		filter, ok := ele.Value.(IFilter)
-		if ok && filter == f {
-			find = true
-			break
-		}
-	}
-
-	if !find {
-		l.filters.PushBack(f)
-	}
-}
-
-func (l *Logger) RemoveFilter(f IFilter) {
-	if f == nil {
-		return
-	}
-
-	l.fMu.Lock()
-	defer l.fMu.Unlock()
-
-	var next *list.Element
-	for ele := l.filters.Front(); ele != nil; ele = next {
-		filter, ok := ele.Value.(IFilter)
-		if ok && filter == f {
-			next = ele.Next()
-			l.filters.Remove(ele)
-		}
-	}
-}
-
-func (l *Logger) filter(record Record) bool {
-	for ele := l.filters.Front(); ele != nil; ele = ele.Next() {
-		filter, ok := ele.Value.(IFilter)
-		if ok && filter != nil {
-			if filter.Filter(record) == false {
-				return false
-			}
-		}
-	}
-	return true
-}
-
-func (l *Logger) AddHandler(h IHandler) {
-	if h == nil {
-		return
-	}
-
-	l.hMu.Lock()
-	defer l.hMu.Unlock()
-
-	find := false
-	for ele := l.handlers.Front(); ele != nil; ele = ele.Next() {
-		handler, ok := ele.Value.(IHandler)
-		if ok && handler == h {
-			find = true
-			break
-		}
-	}
-
-	if !find {
-		l.handlers.PushBack(h)
-	}
-}
-
-func (l *Logger) RemoveHandler(h IHandler) {
-	if h == nil {
-		return
-	}
-
-	l.hMu.Lock()
-	defer l.hMu.Unlock()
-
-	var next *list.Element
-	for ele := l.handlers.Front(); ele != nil; ele = next {
-		handler, ok := ele.Value.(IHandler)
-		if ok && handler == h {
-			next = ele.Next()
-			l.handlers.Remove(ele)
-		}
-	}
 }
 
 func (l *Logger) hasHandlers() bool {
@@ -252,60 +165,38 @@ func (l *Logger) isEnableFor(level Level) bool {
 
 func (l *Logger) log(level Level, msg string, args ...interface{}) {
 	record := Record{
+		Time:  time.Now(),
 		Level: level,
 		Msg:   msg,
 		Args:  args,
 	}
-	if l.filter(record) {
+	if l.Filters.Filter(record) {
 		l.handle(record)
 	}
 }
 
 func (l *Logger) handle(record Record) {
-	if !l.disabled && l.filter(record) {
+	if !l.disabled && l.Filters.Filter(record) {
 		l.callHandlers(record)
 	}
 }
 
 func (l *Logger) callHandlers(record Record) {
 	logger := l
-	found := 0
 	for logger != nil {
-		for ele := l.handlers.Front(); ele != nil; ele = ele.Next() {
-			handler, ok := ele.Value.(IHandler)
-			if ok && handler != nil {
-				found += 1
-				if record.Level >= handler.GetLevel() {
-					handler.Handle(record)
-				}
-			}
-		}
+		l.Handlers.Handle(record)
 		if !l.propagate {
 			logger = nil
 		} else {
 			logger = l.parent
 		}
 	}
-
-	if found == 0 {
-		// TODO 兜底
-	}
 }
 
 func (l *Logger) Flush() {
-	for ele := l.handlers.Front(); ele != nil; ele = ele.Next() {
-		handler, ok := ele.Value.(IHandler)
-		if ok && handler != nil {
-			handler.Flush()
-		}
-	}
+	l.Handlers.Flush()
 }
 
 func (l *Logger) Close() {
-	for ele := l.handlers.Front(); ele != nil; ele = ele.Next() {
-		handler, ok := ele.Value.(IHandler)
-		if ok && handler != nil {
-			handler.Close()
-		}
-	}
+	l.Handlers.Close()
 }
