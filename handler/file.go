@@ -42,7 +42,7 @@ func (s *FileHandler) format(record easylog.Record) string {
 	if record.Level == easylog.INFO {
 		head = prefix + " " + time.Now().Format("2006-01-02 15:04:05") + " * "
 	} else {
-		_, file, line, ok := runtime.Caller(6)
+		_, file, line, ok := runtime.Caller(8)
 		if !ok {
 			file = "???"
 			line = 0
