@@ -20,7 +20,7 @@ func newRootLogger() *Logger {
 	return &Logger{
 		name:           "root",
 		manager:        nil,
-		level:          WARNING,
+		level:          NOTSET,
 		parent:         nil,
 		propagate:      true,
 		isPlaceholder:  false,
@@ -32,7 +32,7 @@ func newPlaceholder() *Logger {
 	return &Logger{
 		name:           "",
 		manager:        nil,
-		level:          WARNING,
+		level:          NOTSET,
 		parent:         nil,
 		propagate:      true,
 		isPlaceholder:  true,
@@ -44,7 +44,7 @@ func newLogger(name string) *Logger {
 	return &Logger{
 		name:           name,
 		manager:        nil,
-		level:          WARNING,
+		level:          NOTSET,
 		parent:         nil,
 		propagate:      true,
 		isPlaceholder:  false,
@@ -56,7 +56,7 @@ func newSparkLogger() *Logger {
 	return &Logger{
 		name:           "",
 		manager:        nil,
-		level:          WARNING,
+		level:          NOTSET,
 		parent:         nil,
 		propagate:      false,
 		isPlaceholder:  false,
