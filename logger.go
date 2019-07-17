@@ -9,7 +9,6 @@ type Logger struct {
 	name      string
 	manager   *manager
 	level     Level
-	disabled  bool
 	parent    *Logger
 	propagate bool
 
@@ -24,7 +23,6 @@ func newRootLogger() *Logger {
 		level:          WARNING,
 		parent:         nil,
 		propagate:      true,
-		disabled:       false,
 		isPlaceholder:  false,
 		placeholderMap: make(map[*Logger]interface{}),
 	}
@@ -37,7 +35,6 @@ func newPlaceholder() *Logger {
 		level:          WARNING,
 		parent:         nil,
 		propagate:      true,
-		disabled:       false,
 		isPlaceholder:  true,
 		placeholderMap: make(map[*Logger]interface{}),
 	}
@@ -50,7 +47,6 @@ func newLogger(name string) *Logger {
 		level:          WARNING,
 		parent:         nil,
 		propagate:      true,
-		disabled:       false,
 		isPlaceholder:  false,
 		placeholderMap: make(map[*Logger]interface{}),
 	}
@@ -63,7 +59,6 @@ func newSparkLogger() *Logger {
 		level:          WARNING,
 		parent:         nil,
 		propagate:      false,
-		disabled:       false,
 		isPlaceholder:  false,
 		placeholderMap: make(map[*Logger]interface{}),
 	}
@@ -176,7 +171,7 @@ func (l *Logger) log(level Level, msg string, args ...interface{}) {
 }
 
 func (l *Logger) handle(record Record) {
-	if !l.disabled && l.Filters.Filter(record) {
+	if l.Filters.Filter(record) {
 		l.callHandlers(record)
 	}
 }

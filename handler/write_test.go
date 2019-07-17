@@ -1,14 +1,57 @@
 package handler
 
 import (
+	"fmt"
+	"path"
+	"runtime"
+	"strconv"
 	"sync"
 	"testing"
-
-	"git.qutoutiao.net/govine/easylog/filter"
+	"time"
 
 	"git.qutoutiao.net/govine/easylog"
+	"git.qutoutiao.net/govine/easylog/filter"
 	"git.qutoutiao.net/govine/easylog/writer"
 )
+
+func format(record easylog.Record) string {
+	var prefix string
+	switch record.Level {
+	case easylog.FATAL:
+		prefix = "FATAL: "
+	case easylog.ERROR:
+		prefix = "ERROR: "
+	case easylog.WARNING:
+		prefix = "WARNING: "
+	case easylog.INFO:
+		prefix = "NOTICE: "
+	case easylog.DEBUG:
+		prefix = "DEBUG: "
+	default:
+		prefix = "UNKNOWN LEVEL: "
+	}
+
+	var body string
+	var head string
+	if record.Level == easylog.INFO {
+		head = prefix + " " + time.Now().Format("2006-01-02 15:04:05") + " * "
+	} else {
+		_, file, line, ok := runtime.Caller(8)
+		if !ok {
+			file = "???"
+			line = 0
+		} else {
+			file = path.Base(file)
+		}
+		head = prefix + " " + time.Now().Format("2006-01-02 15:04:05") + " " + file + " [" + strconv.Itoa(line) + "] * "
+	}
+	if record.Args != nil && len(record.Args) > 0 {
+		body = fmt.Sprintf(record.Msg, record.Args...)
+	} else {
+		body = record.Msg
+	}
+	return head + body
+}
 
 func TestLog(t *testing.T) {
 
@@ -22,7 +65,7 @@ func TestLog(t *testing.T) {
 			t.Error(err)
 			return
 		}
-		DebugFileHandler := easylog.NewHandler(&FileHandler{FileWriter: dw})
+		DebugFileHandler := NewWriteHandler(format, dw)
 		DebugFileHandler.SetLevel(easylog.DEBUG)
 		DebugFileHandler.AddFilter(&filter.LevelEqualFilter{Level: easylog.DEBUG})
 
@@ -31,7 +74,7 @@ func TestLog(t *testing.T) {
 			t.Error(err)
 			return
 		}
-		FatalFileHandler := easylog.NewHandler(&FileHandler{FileWriter: fw})
+		FatalFileHandler := NewWriteHandler(format, fw)
 		FatalFileHandler.SetLevel(easylog.FATAL)
 		FatalFileHandler.AddFilter(&filter.LevelEqualFilter{Level: easylog.FATAL})
 
@@ -40,7 +83,7 @@ func TestLog(t *testing.T) {
 			t.Error(err)
 			return
 		}
-		WarnFileHandler := easylog.NewHandler(&FileHandler{FileWriter: ww})
+		WarnFileHandler := NewWriteHandler(format, ww)
 		WarnFileHandler.SetLevel(easylog.WARN)
 		WarnFileHandler.AddFilter(&filter.LevelEqualFilter{Level: easylog.WARN})
 
@@ -65,30 +108,14 @@ func TestLog(t *testing.T) {
 
 				s := easylog.GetSparkLogger()
 				s.SetLevel(easylog.DEBUG)
-				defer func() {
-					s.Flush()
-					s.Close()
-				}()
 
-				SDebugFileHandler := easylog.NewHandler(&StoreHandler{
-					fileWriter: dw,
-					logs:       make([]string, 0),
-					flushed:    false,
-				})
+				SDebugFileHandler := NewStoreWriteHandler(format, dw)
 				SDebugFileHandler.AddFilter(&filter.LevelEqualFilter{Level: easylog.DEBUG})
 
-				SFatalFileHandler := easylog.NewHandler(&StoreHandler{
-					fileWriter: fw,
-					logs:       make([]string, 0),
-					flushed:    false,
-				})
+				SFatalFileHandler := NewStoreWriteHandler(format, fw)
 				SFatalFileHandler.AddFilter(&filter.LevelEqualFilter{Level: easylog.FATAL})
 
-				SWarnFileHandler := easylog.NewHandler(&StoreHandler{
-					fileWriter: ww,
-					logs:       make([]string, 0),
-					flushed:    false,
-				})
+				SWarnFileHandler := NewStoreWriteHandler(format, ww)
 				SWarnFileHandler.AddFilter(&filter.LevelEqualFilter{Level: easylog.WARN})
 
 				s.AddHandler(SDebugFileHandler)
@@ -101,6 +128,9 @@ func TestLog(t *testing.T) {
 				s.Warning("s warning: %s", "test")
 				s.Error("s error: %s", "test")
 				s.Fatal("s fatal: %s", "test")
+
+				go s.Flush()
+				go s.Close()
 			}(i)
 		}
 		w.Wait()
