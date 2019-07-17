@@ -179,11 +179,11 @@ func (l *Logger) handle(record Record) {
 func (l *Logger) callHandlers(record Record) {
 	logger := l
 	for logger != nil {
-		l.Handlers.Handle(record)
-		if !l.propagate {
+		logger.Handlers.Handle(record)
+		if !logger.propagate {
 			logger = nil
 		} else {
-			logger = l.parent
+			logger = logger.parent
 		}
 	}
 }
