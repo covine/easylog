@@ -130,6 +130,9 @@ func (h *Handlers) Handle(record Record) {
 }
 
 func (h *Handlers) Flush() {
+	if h.handlers == nil {
+		return
+	}
 	for ele := h.handlers.Front(); ele != nil; ele = ele.Next() {
 		handler, ok := ele.Value.(IEasyLogHandler)
 		if ok && handler != nil {
@@ -139,6 +142,10 @@ func (h *Handlers) Flush() {
 }
 
 func (h *Handlers) Close() {
+	if h.handlers == nil {
+		return
+	}
+
 	for ele := h.handlers.Front(); ele != nil; ele = ele.Next() {
 		handler, ok := ele.Value.(IEasyLogHandler)
 		if ok && handler != nil {
