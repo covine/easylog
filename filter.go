@@ -5,13 +5,13 @@ import (
 )
 
 type IFilter interface {
-	Filter(Record) bool
+	Filter(*Record) bool
 }
 
 type IFilters interface {
 	AddFilter(IFilter)
 	RemoveFilter(IFilter)
-	Filter(Record) bool
+	Filter(*Record) bool
 }
 
 // not thread safe, set filters during init
@@ -63,7 +63,7 @@ func (f *Filters) RemoveFilter(fi IFilter) {
 	}
 }
 
-func (f *Filters) Filter(record Record) bool {
+func (f *Filters) Filter(record *Record) bool {
 	if f.filters == nil {
 		return true
 	}

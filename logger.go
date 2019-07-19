@@ -1,75 +1,32 @@
 package easylog
 
-import "time"
+import (
+	"sync"
+	"time"
+)
 
 type Logger struct {
-	Filters
-	Handlers
-
-	name      string
-	manager   *manager
-	level     Level
-	parent    *Logger
-	propagate bool
-
+	manager        *manager
 	isPlaceholder  bool
 	placeholderMap map[*Logger]interface{}
+
+	name   string
+	parent *Logger
+
+	propagate bool
+
+	level Level
+	Filters
+
+	Handlers
+
+	mu            sync.Mutex
+	cached        bool
+	cachedRecords []*Record
 }
 
-func newRootLogger() *Logger {
-	return &Logger{
-		name:           "root",
-		manager:        nil,
-		level:          NOTSET,
-		parent:         nil,
-		propagate:      true,
-		isPlaceholder:  false,
-		placeholderMap: make(map[*Logger]interface{}),
-	}
-}
-
-func newPlaceholder() *Logger {
-	return &Logger{
-		name:           "",
-		manager:        nil,
-		level:          NOTSET,
-		parent:         nil,
-		propagate:      true,
-		isPlaceholder:  true,
-		placeholderMap: make(map[*Logger]interface{}),
-	}
-}
-
-func newLogger(name string) *Logger {
-	return &Logger{
-		name:           name,
-		manager:        nil,
-		level:          NOTSET,
-		parent:         nil,
-		propagate:      true,
-		isPlaceholder:  false,
-		placeholderMap: make(map[*Logger]interface{}),
-	}
-}
-
-func newSparkLogger() *Logger {
-	return &Logger{
-		name:           "",
-		manager:        nil,
-		level:          NOTSET,
-		parent:         nil,
-		propagate:      false,
-		isPlaceholder:  false,
-		placeholderMap: make(map[*Logger]interface{}),
-	}
-}
-
-func (l *Logger) setManager(manager *manager) {
-	l.manager = manager
-}
-
-func (l *Logger) Name() string {
-	return l.name
+func (l *Logger) SetPropagate(propagate bool) {
+	l.propagate = propagate
 }
 
 func (l *Logger) SetLevel(level Level) {
@@ -78,120 +35,84 @@ func (l *Logger) SetLevel(level Level) {
 	}
 }
 
-func (l *Logger) setParent(p *Logger) {
-	l.parent = p
-}
-
-func (l *Logger) SetPropagate(propagate bool) {
-	l.propagate = propagate
-}
-
-func (l *Logger) hasHandlers() bool {
-	pl := l
-	rv := false
-
-	for pl != nil {
-		if pl.handlers.Len() > 0 {
-			rv = true
-			break
-		}
-		if !pl.propagate {
-			break
-		}
-
-		pl = pl.parent
-	}
-	return rv
+func (l *Logger) SetCached(cached bool) {
+	l.cached = cached
 }
 
 func (l *Logger) Debug(msg string, args ...interface{}) {
-	if l.isEnableFor(DEBUG) {
-		l.log(DEBUG, msg, args...)
-	}
+	l.log(DEBUG, msg, args...)
 }
 
 func (l *Logger) Info(msg string, args ...interface{}) {
-	if l.isEnableFor(INFO) {
-		l.log(INFO, msg, args...)
-	}
+	l.log(INFO, msg, args...)
 }
 
 func (l *Logger) Warning(msg string, args ...interface{}) {
-	if l.isEnableFor(WARNING) {
-		l.log(WARNING, msg, args...)
-	}
+	l.log(WARNING, msg, args...)
 }
 
 func (l *Logger) Warn(msg string, args ...interface{}) {
-	if l.isEnableFor(WARN) {
-		l.log(WARN, msg, args...)
-	}
+	l.log(WARN, msg, args...)
 }
 
 func (l *Logger) Error(msg string, args ...interface{}) {
-	if l.isEnableFor(ERROR) {
-		l.log(ERROR, msg, args...)
-	}
+	l.log(ERROR, msg, args...)
 }
 
 func (l *Logger) Fatal(msg string, args ...interface{}) {
-	if l.isEnableFor(FATAL) {
-		l.log(FATAL, msg, args...)
-	}
-}
-
-func (l *Logger) getEffectiveLevel() Level {
-	logger := l
-	for logger != nil {
-		if logger.level != NOTSET {
-			return logger.level
-		}
-		logger = logger.parent
-	}
-	return NOTSET
-}
-
-func (l *Logger) isEnableFor(level Level) bool {
-	if l.manager.disable >= level {
-		return false
-	}
-	return level >= l.getEffectiveLevel()
+	l.log(FATAL, msg, args...)
 }
 
 func (l *Logger) log(level Level, msg string, args ...interface{}) {
-	record := Record{
+	record := &Record{
 		Time:  time.Now(),
 		Level: level,
 		Msg:   msg,
 		Args:  args,
 	}
-	if l.Filters.Filter(record) {
-		l.handle(record)
-	}
+
+	l.handle(record)
 }
 
-func (l *Logger) handle(record Record) {
-	if l.Filters.Filter(record) {
-		l.callHandlers(record)
+func (l *Logger) handle(record *Record) {
+	if record.Level < l.level {
+		return
 	}
-}
 
-func (l *Logger) callHandlers(record Record) {
-	logger := l
-	for logger != nil {
-		logger.Handlers.Handle(record)
-		if !logger.propagate {
-			logger = nil
-		} else {
-			logger = logger.parent
+	if !l.Filters.Filter(record) {
+		return
+	}
+
+	if l.cached {
+		// 缓存 record
+		l.mu.Lock()
+		defer l.mu.Unlock()
+		if l.cachedRecords == nil {
+			l.cachedRecords = make([]*Record, 0)
 		}
+		l.cachedRecords = append(l.cachedRecords, record)
+		return
+	} else {
+		l.Handlers.Handle(record)
+		if l.propagate && l.parent != nil {
+			l.parent.handle(record)
+		}
+		return
 	}
 }
 
 func (l *Logger) Flush() {
-	l.Handlers.Flush()
-}
+	if l.cached {
+		l.mu.Lock()
+		for _, record := range l.cachedRecords {
+			l.Handlers.Handle(record)
+			if l.propagate && l.parent != nil {
+				l.parent.handle(record)
+			}
+		}
+		l.cachedRecords = nil
+		l.mu.Unlock()
+	}
 
-func (l *Logger) Close() {
-	l.Handlers.Close()
+	l.Handlers.Flush()
 }

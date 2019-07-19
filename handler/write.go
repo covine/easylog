@@ -15,7 +15,7 @@ type WriteHandler struct {
 	writer IWriter
 }
 
-func (w *WriteHandler) Handle(record easylog.Record) {
+func (w *WriteHandler) Handle(record *easylog.Record) {
 	if w.writer != nil {
 		s := w.format(record)
 		w.writer.Write([]byte(s + "\n"))
@@ -26,9 +26,6 @@ func (w *WriteHandler) Flush() {
 	if w.writer != nil {
 		w.writer.Flush()
 	}
-}
-
-func (w *WriteHandler) Close() {
 }
 
 func NewWriteHandler(format easylog.Formatter, writer IWriter) easylog.IEasyLogHandler {

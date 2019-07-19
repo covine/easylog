@@ -6,18 +6,6 @@ import (
 	"testing"
 )
 
-/*
-type LoggerGenerator func() ILogger
-
-func defaultLoggerGenerator() ILogger {
-	return &Logger{}
-}
-
-func (m *manager) SetLoggerGenerator(g LoggerGenerator) {
-	m.loggerGenerator = g
-}
-*/
-
 func TestLog(t *testing.T) {
 
 	t.Run("get-logger", func(t *testing.T) {

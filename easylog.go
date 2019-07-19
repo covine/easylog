@@ -4,10 +4,20 @@ var m *manager
 var root *Logger
 
 func init() {
-	m = newManager()
-	root = newRootLogger()
-	root.setManager(m)
-	m.setRoot(root)
+	m = &manager{
+		loggerMap: make(map[string]*Logger),
+	}
+
+	root = &Logger{
+		name:           "root",
+		manager:        m,
+		level:          NOTSET,
+		parent:         nil,
+		propagate:      true,
+		isPlaceholder:  false,
+		placeholderMap: make(map[*Logger]interface{}),
+	}
+	m.root = root
 }
 
 func GetRootLogger() *Logger {
@@ -18,13 +28,15 @@ func GetLogger(name string) *Logger {
 	return m.getLogger(name)
 }
 
-func GetSparkLogger() *Logger {
-	s := newSparkLogger()
-	s.setManager(m)
-	s.setParent(root)
-	return s
-}
-
-func Disable(level Level) {
-	m.setDisable(level)
+func NewCachedLogger(parent *Logger) *Logger {
+	return &Logger{
+		name:           "",
+		manager:        m,
+		cached:         true,
+		level:          NOTSET,
+		parent:         parent,
+		propagate:      false,
+		isPlaceholder:  false,
+		placeholderMap: make(map[*Logger]interface{}),
+	}
 }

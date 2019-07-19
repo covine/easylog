@@ -14,7 +14,7 @@ import (
 	"git.qutoutiao.net/govine/easylog/writer"
 )
 
-func format(record easylog.Record) string {
+func format(record *easylog.Record) string {
 	var prefix string
 	switch record.Level {
 	case easylog.FATAL:
@@ -106,21 +106,9 @@ func TestLog(t *testing.T) {
 			go func(j int) {
 				defer w.Done()
 
-				s := easylog.GetSparkLogger()
-				s.SetLevel(easylog.DEBUG)
-
-				SDebugFileHandler := NewStoreWriteHandler(format, dw)
-				SDebugFileHandler.AddFilter(&filter.LevelEqualFilter{Level: easylog.DEBUG})
-
-				SFatalFileHandler := NewStoreWriteHandler(format, fw)
-				SFatalFileHandler.AddFilter(&filter.LevelEqualFilter{Level: easylog.FATAL})
-
-				SWarnFileHandler := NewStoreWriteHandler(format, ww)
-				SWarnFileHandler.AddFilter(&filter.LevelEqualFilter{Level: easylog.WARN})
-
-				s.AddHandler(SDebugFileHandler)
-				s.AddHandler(SFatalFileHandler)
-				s.AddHandler(SWarnFileHandler)
+				s := easylog.NewCachedLogger(l)
+				s.SetLevel(easylog.FATAL)
+				s.SetPropagate(true)
 
 				s.Debug("s debug: %s", "test")
 				s.Info("s info: %s", "test")
@@ -130,7 +118,6 @@ func TestLog(t *testing.T) {
 				s.Fatal("s fatal: %s", "test")
 
 				go s.Flush()
-				go s.Close()
 			}(i)
 		}
 		w.Wait()
@@ -140,6 +127,5 @@ func TestLog(t *testing.T) {
 		ww.Close()
 
 		l.Flush()
-		l.Close()
 	})
 }

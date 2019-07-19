@@ -11,7 +11,7 @@ type StdoutHandler struct {
 	format easylog.Formatter
 }
 
-func (s *StdoutHandler) Handle(record easylog.Record) {
+func (s *StdoutHandler) Handle(record *easylog.Record) {
 	var str string
 	if s.format != nil {
 		str = s.format(record)
@@ -23,9 +23,6 @@ func (s *StdoutHandler) Handle(record easylog.Record) {
 }
 
 func (f *StdoutHandler) Flush() {
-}
-
-func (f *StdoutHandler) Close() {
 }
 
 func NewStdoutHandler(format easylog.Formatter) easylog.IEasyLogHandler {

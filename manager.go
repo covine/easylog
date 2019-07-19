@@ -9,24 +9,6 @@ type manager struct {
 	mu        sync.RWMutex
 	root      *Logger
 	loggerMap map[string]*Logger
-	disable   Level
-}
-
-func newManager() *manager {
-	return &manager{
-		loggerMap: make(map[string]*Logger),
-		disable:   NOTSET,
-	}
-}
-
-func (m *manager) setDisable(level Level) {
-	if IsLevel(level) {
-		m.disable = level
-	}
-}
-
-func (m *manager) setRoot(root *Logger) {
-	m.root = root
 }
 
 func (m *manager) getLogger(name string) *Logger {
@@ -43,16 +25,30 @@ func (m *manager) getLogger(name string) *Logger {
 	if l, ok := m.loggerMap[name]; ok && l != nil {
 		if l.isPlaceholder {
 			ph := l
-			l = newLogger(name)
-			l.setManager(m)
+			l = &Logger{
+				name:           name,
+				manager:        m,
+				level:          NOTSET,
+				parent:         nil,
+				propagate:      true,
+				isPlaceholder:  false,
+				placeholderMap: make(map[*Logger]interface{}),
+			}
 			m.loggerMap[name] = l
 			m.fixUpChildren(ph, l)
 			m.fixUpParents(l)
 		}
 		return l
 	} else {
-		l := newLogger(name)
-		l.setManager(m)
+		l := &Logger{
+			name:           name,
+			manager:        m,
+			level:          NOTSET,
+			parent:         nil,
+			propagate:      true,
+			isPlaceholder:  false,
+			placeholderMap: make(map[*Logger]interface{}),
+		}
 		m.loggerMap[name] = l
 		m.fixUpParents(l)
 		return l
@@ -70,7 +66,15 @@ func (m *manager) fixUpParents(l *Logger) {
 		}
 		subStr := name[:i]
 		if _, ok := m.loggerMap[subStr]; !ok {
-			placeHolder := newPlaceholder()
+			placeHolder := &Logger{
+				name:           "",
+				manager:        nil,
+				level:          NOTSET,
+				parent:         nil,
+				propagate:      true,
+				isPlaceholder:  true,
+				placeholderMap: make(map[*Logger]interface{}),
+			}
 			placeHolder.placeholderMap[l] = nil
 			m.loggerMap[subStr] = placeHolder
 		} else {

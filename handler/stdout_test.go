@@ -32,14 +32,10 @@ func TestStdout(t *testing.T) {
 			go func(j int) {
 				defer w.Done()
 
-				s := easylog.GetSparkLogger()
+				s := easylog.NewCachedLogger(l)
 				s.SetLevel(easylog.DEBUG)
-				defer func() {
-					s.Flush()
-					s.Close()
-				}()
-
-				s.AddHandler(stdHandler)
+				s.SetPropagate(true)
+				defer s.Flush()
 
 				s.Debug("s debug: %s", "test")
 				s.Info("s info: %s", "test")
@@ -52,6 +48,5 @@ func TestStdout(t *testing.T) {
 		w.Wait()
 
 		l.Flush()
-		l.Close()
 	})
 }
