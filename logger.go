@@ -59,11 +59,17 @@ func (l *Logger) SetLevelByString(level string) {
 
 func (l *Logger) SetStack(level Level, recordStack bool) {
 	if IsLevel(level) {
+		if l.stack == nil {
+			l.stack = make(map[Level]bool)
+		}
 		l.stack[level] = recordStack
 	}
 }
 
 func (l *Logger) needStack(level Level) bool {
+	if l.stack == nil {
+		return false
+	}
 	need, ok := l.stack[level]
 	if ok {
 		return need
