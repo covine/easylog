@@ -1,6 +1,8 @@
 package easylog
 
 import (
+	"path"
+	"runtime"
 	"sync"
 	"time"
 )
@@ -16,6 +18,7 @@ type Logger struct {
 	propagate bool
 
 	level Level
+	stack map[Level]bool
 	Filters
 
 	Handlers
@@ -54,6 +57,20 @@ func (l *Logger) SetLevelByString(level string) {
 	}
 }
 
+func (l *Logger) SetStack(level Level, recordStack bool) {
+	if IsLevel(level) {
+		l.stack[level] = recordStack
+	}
+}
+
+func (l *Logger) needStack(level Level) bool {
+	need, ok := l.stack[level]
+	if ok {
+		return need
+	}
+	return false
+}
+
 func (l *Logger) SetCached(cached bool) {
 	l.cached = cached
 }
@@ -88,6 +105,17 @@ func (l *Logger) log(level Level, msg string, args ...interface{}) {
 		Level: level,
 		Msg:   msg,
 		Args:  args,
+	}
+	if l.needStack(level) {
+		_, file, line, ok := runtime.Caller(2)
+		if !ok {
+			file = "???"
+			line = 0
+		} else {
+			file = path.Base(file)
+		}
+		record.File = file
+		record.Line = line
 	}
 
 	l.handle(record)

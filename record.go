@@ -9,4 +9,6 @@ type Record struct {
 	Level Level
 	Msg   string
 	Args  []interface{}
+	File  string
+	Line  int
 }
