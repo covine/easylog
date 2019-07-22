@@ -35,6 +35,25 @@ func (l *Logger) SetLevel(level Level) {
 	}
 }
 
+func (l *Logger) SetLevelByString(level string) {
+	switch level {
+	case "DEBUG":
+		l.level = DEBUG
+	case "INFO":
+		l.level = INFO
+	case "WARN":
+		l.level = WARN
+	case "WARNING":
+		l.level = WARNING
+	case "ERROR":
+		l.level = ERROR
+	case "FATAL":
+		l.level = FATAL
+	default:
+		return
+	}
+}
+
 func (l *Logger) SetCached(cached bool) {
 	l.cached = cached
 }
