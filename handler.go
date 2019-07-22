@@ -15,6 +15,7 @@ type IEasyLogHandler interface {
 	IHandler
 	IFilters
 	SetLevel(Level)
+	SetLevelByString(level string)
 	GetLevel() Level
 }
 
@@ -33,6 +34,25 @@ func NewEasyLogHandler(ih IHandler) IEasyLogHandler {
 func (h *handlerWrapper) SetLevel(level Level) {
 	if IsLevel(level) {
 		h.level = level
+	}
+}
+
+func (h *handlerWrapper) SetLevelByString(level string) {
+	switch level {
+	case "DEBUG":
+		h.level = DEBUG
+	case "INFO":
+		h.level = INFO
+	case "WARN":
+		h.level = WARN
+	case "WARNING":
+		h.level = WARNING
+	case "ERROR":
+		h.level = ERROR
+	case "FATAL":
+		h.level = FATAL
+	default:
+		return
 	}
 }
 
