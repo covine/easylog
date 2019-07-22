@@ -100,6 +100,10 @@ func (l *Logger) Fatal(msg string, args ...interface{}) {
 }
 
 func (l *Logger) log(level Level, msg string, args ...interface{}) {
+	if level < l.level {
+		return
+	}
+
 	record := &Record{
 		Time:  time.Now(),
 		Level: level,
