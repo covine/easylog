@@ -1,14 +1,109 @@
 package easylog
 
 import (
+	"runtime"
+	"sync"
 	"time"
 )
 
+// methods not concurrency-safe
 type Record struct {
-	Time  time.Time
-	Level Level
-	Msg   string
-	Args  []interface{}
-	File  string
-	Line  int
+	Logger *Logger // which Record belongs to
+
+	Time      time.Time
+	Level     Level
+	Message   string
+	Args      []interface{}
+	FieldMap  map[string]interface{}
+	Tags      []string
+	ExtraData interface{}
+
+	Frame *runtime.Frame // runtime stack
+}
+
+var recordPool = &sync.Pool{
+	New: func() interface{} {
+		return &Record{}
+	},
+}
+
+func newRecord() *Record {
+	r := recordPool.Get().(*Record)
+
+	r.Logger = nil
+
+	r.Time = time.Time{}
+	r.Level = NOTSET
+	r.Message = ""
+	r.Args = nil
+	r.FieldMap = nil
+	r.Tags = nil
+	r.ExtraData = nil
+
+	r.Frame = nil
+	return r
+}
+
+func putRecord(r *Record) {
+	recordPool.Put(r)
+}
+
+func (r *Record) Tag(tag string) *Record {
+	if r == nil {
+		return r
+	}
+	if !r.ExistTag(tag) {
+		r.Tags = append(r.Tags, tag)
+	}
+
+	return r
+}
+
+func (r *Record) ExistTag(tag string) bool {
+	if r == nil {
+		return false
+	}
+
+	for _, t := range r.Tags {
+		if t == tag {
+			return true
+		}
+	}
+	return false
+}
+
+func (r *Record) Fields(fields map[string]interface{}) *Record {
+	if r == nil {
+		return r
+	}
+
+	if r.FieldMap == nil {
+		r.FieldMap = make(map[string]interface{})
+	}
+
+	for k, v := range fields {
+		r.FieldMap[k] = v
+	}
+	return r
+}
+
+func (r *Record) Extra(extra interface{}) *Record {
+	if r == nil {
+		return r
+	}
+
+	r.ExtraData = extra
+	return r
+}
+
+func (r *Record) Msg(msg string, args ...interface{}) {
+	if r == nil {
+		return
+	}
+
+	r.Time = time.Now()
+	r.Message = msg
+	r.Args = args
+
+	r.Logger.handle(r)
 }

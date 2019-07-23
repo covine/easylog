@@ -1,10 +1,8 @@
 package easylog
 
 import (
-	"path"
 	"runtime"
 	"sync"
-	"time"
 )
 
 type Logger struct {
@@ -57,16 +55,25 @@ func (l *Logger) SetLevelByString(level string) {
 	}
 }
 
-func (l *Logger) SetStack(level Level, recordStack bool) {
+func (l *Logger) EnableFrame(level Level) {
 	if IsLevel(level) {
 		if l.stack == nil {
 			l.stack = make(map[Level]bool)
 		}
-		l.stack[level] = recordStack
+		l.stack[level] = true
 	}
 }
 
-func (l *Logger) needStack(level Level) bool {
+func (l *Logger) DisableFrame(level Level) {
+	if IsLevel(level) {
+		if l.stack == nil {
+			l.stack = make(map[Level]bool)
+		}
+		l.stack[level] = false
+	}
+}
+
+func (l *Logger) needRecordFrame(level Level) bool {
 	if l.stack == nil {
 		return false
 	}
@@ -81,54 +88,51 @@ func (l *Logger) SetCached(cached bool) {
 	l.cached = cached
 }
 
-func (l *Logger) Debug(msg string, args ...interface{}) {
-	l.log(DEBUG, msg, args...)
+func (l *Logger) Debug() *Record {
+	return l.log(DEBUG)
 }
 
-func (l *Logger) Info(msg string, args ...interface{}) {
-	l.log(INFO, msg, args...)
+func (l *Logger) Info() *Record {
+	return l.log(INFO)
 }
 
-func (l *Logger) Warning(msg string, args ...interface{}) {
-	l.log(WARNING, msg, args...)
+func (l *Logger) Warning() *Record {
+	return l.log(WARNING)
 }
 
-func (l *Logger) Warn(msg string, args ...interface{}) {
-	l.log(WARN, msg, args...)
+func (l *Logger) Warn() *Record {
+	return l.log(WARN)
 }
 
-func (l *Logger) Error(msg string, args ...interface{}) {
-	l.log(ERROR, msg, args...)
+func (l *Logger) Error() *Record {
+	return l.log(ERROR)
 }
 
-func (l *Logger) Fatal(msg string, args ...interface{}) {
-	l.log(FATAL, msg, args...)
+func (l *Logger) Fatal() *Record {
+	return l.log(FATAL)
 }
 
-func (l *Logger) log(level Level, msg string, args ...interface{}) {
+func (l *Logger) log(level Level) *Record {
 	if level < l.level {
-		return
+		return nil
 	}
 
-	record := &Record{
-		Time:  time.Now(),
-		Level: level,
-		Msg:   msg,
-		Args:  args,
-	}
-	if l.needStack(level) {
+	record := newRecord()
+	record.Logger = l
+	record.Level = level
+	if l.needRecordFrame(level) {
 		_, file, line, ok := runtime.Caller(2)
-		if !ok {
-			file = "???"
-			line = 0
+		if ok {
+			record.Frame = &runtime.Frame{
+				File: file,
+				Line: line,
+			}
 		} else {
-			file = path.Base(file)
+			record.Frame = nil
 		}
-		record.File = file
-		record.Line = line
 	}
 
-	l.handle(record)
+	return record
 }
 
 func (l *Logger) handle(record *Record) {
@@ -154,6 +158,10 @@ func (l *Logger) handle(record *Record) {
 		if l.propagate && l.parent != nil {
 			l.parent.handle(record)
 		}
+
+		if !l.propagate || l.parent == nil {
+			putRecord(record)
+		}
 		return
 	}
 }
@@ -165,6 +173,9 @@ func (l *Logger) Flush() {
 			l.Handlers.Handle(record)
 			if l.propagate && l.parent != nil {
 				l.parent.handle(record)
+			}
+			if !l.propagate || l.parent == nil {
+				putRecord(record)
 			}
 		}
 		l.cachedRecords = nil

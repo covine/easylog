@@ -3,7 +3,6 @@ package handler
 import (
 	"fmt"
 	"path"
-	"runtime"
 	"strconv"
 	"sync"
 	"testing"
@@ -36,19 +35,18 @@ func format(record *easylog.Record) string {
 	if record.Level == easylog.INFO {
 		head = prefix + " " + time.Now().Format("2006-01-02 15:04:05") + " * "
 	} else {
-		_, file, line, ok := runtime.Caller(8)
-		if !ok {
-			file = "???"
-			line = 0
-		} else {
-			file = path.Base(file)
+		file := "???"
+		line := 0
+		if record.Frame != nil {
+			file = path.Base(record.Frame.File)
+			line = record.Frame.Line
 		}
 		head = prefix + " " + time.Now().Format("2006-01-02 15:04:05") + " " + file + " [" + strconv.Itoa(line) + "] * "
 	}
 	if record.Args != nil && len(record.Args) > 0 {
-		body = fmt.Sprintf(record.Msg, record.Args...)
+		body = fmt.Sprintf(record.Message, record.Args...)
 	} else {
-		body = record.Msg
+		body = record.Message
 	}
 	return head + body
 }
@@ -90,14 +88,15 @@ func TestLog(t *testing.T) {
 		l.AddHandler(DebugFileHandler)
 		l.AddHandler(FatalFileHandler)
 		l.AddHandler(WarnFileHandler)
+		l.EnableFrame(easylog.WARN)
 
-		l.Debug("debug: %s", "test")
+		l.Debug().Msg("debug: %s", "test")
 		l.Flush()
-		l.Info("info: %s", "test")
-		l.Warn("warn: %s", "test")
-		l.Warning("warning: %s", "test")
-		l.Error("error: %s", "test")
-		l.Fatal("fatal: %s", "test")
+		l.Info().Msg("info: %s", "test")
+		l.Warn().Msg("warn: %s", "test")
+		l.Warning().Msg("warning: %s", "test")
+		l.Error().Msg("error: %s", "test")
+		l.Fatal().Msg("fatal: %s", "test")
 		l.Flush()
 
 		var w sync.WaitGroup
@@ -107,15 +106,18 @@ func TestLog(t *testing.T) {
 				defer w.Done()
 
 				s := easylog.NewCachedLogger(l)
-				s.SetLevel(easylog.FATAL)
+				s.SetLevel(easylog.DEBUG)
 				s.SetPropagate(true)
+				s.EnableFrame(easylog.DEBUG)
+				s.EnableFrame(easylog.WARN)
+				s.EnableFrame(easylog.FATAL)
 
-				s.Debug("s debug: %s", "test")
-				s.Info("s info: %s", "test")
-				s.Warn("s warn: %s", "test")
-				s.Warning("s warning: %s", "test")
-				s.Error("s error: %s", "test")
-				s.Fatal("s fatal: %s", "test")
+				s.Debug().Msg("s debug: %s", "test")
+				s.Info().Msg("s info: %s", "test")
+				s.Warn().Msg("s warn: %s", "test")
+				s.Warning().Msg("s warning: %s", "test")
+				s.Error().Msg("s error: %s", "test")
+				s.Fatal().Msg("s fatal: %s", "test")
 
 				go s.Flush()
 			}(i)

@@ -25,6 +25,7 @@ type handlerWrapper struct {
 	level   Level
 }
 
+// warning: Record will be recycled after Handler, so, do not cache Record in Handler
 func NewEasyLogHandler(ih IHandler) IEasyLogHandler {
 	return &handlerWrapper{
 		handler: ih,
