@@ -135,12 +135,14 @@ func (l *Logger) log(level Level) *Record {
 	return record
 }
 
-func (l *Logger) handle(record *Record) {
+func (l *Logger) handleRecord(record *Record) {
 	if record.Level < l.level {
+		putRecord(record)
 		return
 	}
 
 	if !l.Filters.Filter(record) {
+		putRecord(record)
 		return
 	}
 
@@ -156,10 +158,8 @@ func (l *Logger) handle(record *Record) {
 	} else {
 		l.Handlers.Handle(record)
 		if l.propagate && l.parent != nil {
-			l.parent.handle(record)
-		}
-
-		if !l.propagate || l.parent == nil {
+			l.parent.handleRecord(record)
+		} else {
 			putRecord(record)
 		}
 		return
@@ -169,17 +169,16 @@ func (l *Logger) handle(record *Record) {
 func (l *Logger) Flush() {
 	if l.cached {
 		l.mu.Lock()
+		defer l.mu.Unlock()
 		for _, record := range l.cachedRecords {
 			l.Handlers.Handle(record)
 			if l.propagate && l.parent != nil {
-				l.parent.handle(record)
-			}
-			if !l.propagate || l.parent == nil {
+				l.parent.handleRecord(record)
+			} else {
 				putRecord(record)
 			}
 		}
 		l.cachedRecords = nil
-		l.mu.Unlock()
 	}
 
 	l.Handlers.Flush()

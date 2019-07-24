@@ -6,9 +6,9 @@ import (
 	"time"
 )
 
-// methods not concurrency-safe
+// methods of Record object are not concurrency-safe
 type Record struct {
-	Logger *Logger // which Record belongs to
+	Logger *Logger // which Logger Record belongs to
 
 	Time      time.Time
 	Level     Level
@@ -105,5 +105,6 @@ func (r *Record) Msg(msg string, args ...interface{}) {
 	r.Message = msg
 	r.Args = args
 
-	r.Logger.handle(r)
+	// we can not putRecord() after handleRecord() because Record's logger or it's parent logger can be cachedLogger
+	r.Logger.handleRecord(r)
 }

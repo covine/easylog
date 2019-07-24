@@ -19,17 +19,17 @@ type IEasyLogHandler interface {
 	GetLevel() Level
 }
 
-type handlerWrapper struct {
-	Filters
-	handler IHandler
-	level   Level
-}
-
 // warning: Record will be recycled after Handler, so, do not cache Record in Handler
 func NewEasyLogHandler(ih IHandler) IEasyLogHandler {
 	return &handlerWrapper{
 		handler: ih,
 	}
+}
+
+type handlerWrapper struct {
+	Filters
+	handler IHandler
+	level   Level
 }
 
 func (h *handlerWrapper) SetLevel(level Level) {
