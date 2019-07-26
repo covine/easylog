@@ -1,7 +1,6 @@
 package easylog
 
 import (
-	"runtime"
 	"sync"
 	"time"
 )
@@ -18,7 +17,11 @@ type Record struct {
 	Tags      []string
 	ExtraData interface{}
 
-	Frame *runtime.Frame // runtime stack
+	// runtime stack
+	PC   uintptr
+	File string
+	Line int
+	OK   bool
 }
 
 var recordPool = &sync.Pool{
@@ -40,7 +43,11 @@ func newRecord() *Record {
 	r.Tags = nil
 	r.ExtraData = nil
 
-	r.Frame = nil
+	r.PC = 0
+	r.File = ""
+	r.Line = 0
+	r.OK = false
+
 	return r
 }
 

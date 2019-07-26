@@ -37,9 +37,9 @@ func format(record *easylog.Record) string {
 	} else {
 		file := "???"
 		line := 0
-		if record.Frame != nil {
-			file = path.Base(record.Frame.File)
-			line = record.Frame.Line
+		if record.OK {
+			file = path.Base(record.File)
+			line = record.Line
 		}
 		head = prefix + " " + time.Now().Format("2006-01-02 15:04:05") + " " + file + " [" + strconv.Itoa(line) + "] * "
 	}

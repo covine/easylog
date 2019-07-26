@@ -121,15 +121,7 @@ func (l *Logger) log(level Level) *Record {
 	record.Logger = l
 	record.Level = level
 	if l.needRecordFrame(level) {
-		_, file, line, ok := runtime.Caller(2)
-		if ok {
-			record.Frame = &runtime.Frame{
-				File: file,
-				Line: line,
-			}
-		} else {
-			record.Frame = nil
-		}
+		record.PC, record.File, record.Line, record.OK = runtime.Caller(2)
 	}
 
 	return record
