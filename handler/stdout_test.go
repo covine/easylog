@@ -4,7 +4,7 @@ import (
 	"sync"
 	"testing"
 
-	"git.qutoutiao.net/govine/easylog"
+	"github.com/govine/easylog"
 )
 
 func TestStdout(t *testing.T) {

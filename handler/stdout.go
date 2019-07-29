@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"git.qutoutiao.net/govine/easylog"
+	"github.com/govine/easylog"
 )
 
 type StdoutHandler struct {
