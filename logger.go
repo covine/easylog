@@ -177,5 +177,6 @@ func (l *Logger) Flush() {
 }
 
 func (l *Logger) Close() {
+	l.Flush()
 	l.Handlers.Close()
 }
