@@ -40,7 +40,10 @@ func TestStdout(t *testing.T) {
 				s.EnableFrame(easylog.ERROR)
 				s.EnableFrame(easylog.WARN)
 				s.EnableFrame(easylog.FATAL)
-				defer s.Flush()
+				defer func() {
+					s.Flush()
+					s.Close()
+				}()
 
 				s.Debug().Msg("s debug: %s", "test")
 				s.Info().Msg("s info: %s", "test")
@@ -53,5 +56,6 @@ func TestStdout(t *testing.T) {
 		w.Wait()
 
 		l.Flush()
+		l.Close()
 	})
 }

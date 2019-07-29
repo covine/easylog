@@ -28,6 +28,12 @@ func (w *WriteHandler) Flush() {
 	}
 }
 
+func (w *WriteHandler) Close() {
+	if w.writer != nil {
+		w.writer.Close()
+	}
+}
+
 func NewWriteHandler(format easylog.Formatter, writer IWriter) easylog.IEasyLogHandler {
 	return easylog.NewEasyLogHandler(&WriteHandler{
 		format: format,

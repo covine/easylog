@@ -119,15 +119,15 @@ func TestLog(t *testing.T) {
 				s.Error().Msg("s error: %s", "test")
 				s.Fatal().Msg("s fatal: %s", "test")
 
-				go s.Flush()
+				go func() {
+					s.Flush()
+					s.Close()
+				}()
 			}(i)
 		}
 		w.Wait()
 
-		dw.Close()
-		fw.Close()
-		ww.Close()
-
 		l.Flush()
+		l.Close()
 	})
 }
