@@ -9,6 +9,7 @@ type Formatter func(record *Record) string
 type IHandler interface {
 	Handle(*Record)
 	Flush()
+	Close()
 }
 
 type IEasyLogHandler interface {
@@ -78,6 +79,12 @@ func (h *handlerWrapper) Handle(record *Record) {
 func (h *handlerWrapper) Flush() {
 	if h.handler != nil {
 		h.handler.Flush()
+	}
+}
+
+func (h *handlerWrapper) Close() {
+	if h.handler != nil {
+		h.handler.Close()
 	}
 }
 
@@ -151,6 +158,18 @@ func (h *Handlers) Flush() {
 		handler, ok := ele.Value.(IEasyLogHandler)
 		if ok && handler != nil {
 			handler.Flush()
+		}
+	}
+}
+
+func (h *Handlers) Close() {
+	if h.handlers == nil {
+		return
+	}
+	for ele := h.handlers.Front(); ele != nil; ele = ele.Next() {
+		handler, ok := ele.Value.(IEasyLogHandler)
+		if ok && handler != nil {
+			handler.Close()
 		}
 	}
 }

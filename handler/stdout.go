@@ -25,6 +25,9 @@ func (s *StdoutHandler) Handle(record *easylog.Record) {
 func (f *StdoutHandler) Flush() {
 }
 
+func (f *StdoutHandler) Close() {
+}
+
 func NewStdoutHandler(format easylog.Formatter) easylog.IEasyLogHandler {
 	return easylog.NewEasyLogHandler(&StdoutHandler{
 		format: format,
