@@ -16,7 +16,7 @@ func (s *StdoutHandler) Handle(record *easylog.Record) {
 	if s.format != nil {
 		str = s.format(record)
 	} else {
-		str = fmt.Sprintf(record.Message, record.Args)
+		str = fmt.Sprintf(record.Message, record.Args...)
 	}
 
 	os.Stdout.Write([]byte(str + "\n"))
