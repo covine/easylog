@@ -55,9 +55,9 @@ func (f *Filters) RemoveFilter(fi IFilter) {
 
 	var next *list.Element
 	for ele := f.filters.Front(); ele != nil; ele = next {
+		next = ele.Next()
 		filter, ok := ele.Value.(IFilter)
 		if ok && filter == fi {
-			next = ele.Next()
 			f.filters.Remove(ele)
 		}
 	}
