@@ -13,7 +13,7 @@
 ## 安装
 
 ```go
-go get -u git.qutoutiao.net/govine/easylog
+go get -u github.com/govine/easylog
 ```
 
 ## 开始
@@ -24,8 +24,8 @@ go get -u git.qutoutiao.net/govine/easylog
 package easylog_test
 
 import (
-	"git.qutoutiao.net/govine/easylog"
-	"git.qutoutiao.net/govine/easylog/handler"
+	"github.com/govine/easylog"
+	"github.com/govine/easylog/handler"
 )
 
 func ExampleEasylog_Simple() {
@@ -48,8 +48,8 @@ package easylog_test
 import (
 	"encoding/json"
 
-	"git.qutoutiao.net/govine/easylog"
-	"git.qutoutiao.net/govine/easylog/handler"
+	"github.com/govine/easylog"
+	"github.com/govine/easylog/handler"
 )
 
 func format(record *easylog.Record) string {
@@ -86,8 +86,8 @@ package easylog_test
 import (
 	"encoding/json"
 
-	"git.qutoutiao.net/govine/easylog"
-	"git.qutoutiao.net/govine/easylog/handler"
+	"github.com/govine/easylog"
+	"github.com/govine/easylog/handler"
 )
 
 func ExampleEasylog_File() {
