@@ -19,13 +19,13 @@ func (s *StdoutHandler) Handle(record *easylog.Record) {
 		str = fmt.Sprintf(record.Message, record.Args...)
 	}
 
-	os.Stdout.Write([]byte(str + "\n"))
+	_, _ = os.Stdout.Write([]byte(str + "\n"))
 }
 
-func (f *StdoutHandler) Flush() {
+func (s *StdoutHandler) Flush() {
 }
 
-func (f *StdoutHandler) Close() {
+func (s *StdoutHandler) Close() {
 }
 
 func NewStdoutHandler(format easylog.Formatter) easylog.IEasyLogHandler {

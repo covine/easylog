@@ -129,11 +129,19 @@ func (h *Handlers) RemoveHandler(hw IEasyLogHandler) {
 
 	var next *list.Element
 	for ele := h.handlers.Front(); ele != nil; ele = next {
+		next = ele.Next()
 		handler, ok := ele.Value.(IEasyLogHandler)
 		if ok && handler == hw {
-			next = ele.Next()
 			h.handlers.Remove(ele)
 		}
+	}
+}
+
+func (h *Handlers) HasHandler() bool {
+	if h.handlers == nil {
+		return false
+	} else {
+		return h.handlers.Len() > 0
 	}
 }
 
