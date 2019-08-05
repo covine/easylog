@@ -8,11 +8,11 @@ import (
 	"testing"
 	"time"
 
-	"git.qutoutiao.net/govine/easylog/filter"
-	"git.qutoutiao.net/govine/easylog/writer"
+	"github.com/govine/easylog/filter"
+	"github.com/govine/easylog/writer"
 
-	"git.qutoutiao.net/govine/easylog"
-	"git.qutoutiao.net/govine/easylog/handler"
+	"github.com/govine/easylog"
+	"github.com/govine/easylog/handler"
 )
 
 func TestFileHandler(t *testing.T) {
