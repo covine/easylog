@@ -34,7 +34,7 @@ func (r *RotateFileHandler) Close() {
 	}
 }
 
-func NewWriteHandler(format easylog.Formatter, writer IWriter) easylog.IEasyLogHandler {
+func NewRotateFileHandler(format easylog.Formatter, writer IWriter) easylog.IEasyLogHandler {
 	return easylog.NewEasyLogHandler(&RotateFileHandler{
 		format: format,
 		writer: writer,

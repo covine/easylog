@@ -215,7 +215,7 @@ func TestRotateFileHandler(t *testing.T) {
 			t.Error(err)
 			return
 		}
-		DebugFileHandler := handler.NewWriteHandler(fFormat, dw)
+		DebugFileHandler := handler.NewRotateFileHandler(fFormat, dw)
 		DebugFileHandler.SetLevel(easylog.DEBUG)
 		DebugFileHandler.AddFilter(&filter.LevelEqualFilter{Level: easylog.DEBUG})
 
@@ -224,7 +224,7 @@ func TestRotateFileHandler(t *testing.T) {
 			t.Error(err)
 			return
 		}
-		FatalFileHandler := handler.NewWriteHandler(fFormat, fw)
+		FatalFileHandler := handler.NewRotateFileHandler(fFormat, fw)
 		FatalFileHandler.SetLevel(easylog.FATAL)
 		FatalFileHandler.AddFilter(&filter.LevelEqualFilter{Level: easylog.FATAL})
 
@@ -233,7 +233,7 @@ func TestRotateFileHandler(t *testing.T) {
 			t.Error(err)
 			return
 		}
-		WarnFileHandler := handler.NewWriteHandler(fFormat, ww)
+		WarnFileHandler := handler.NewRotateFileHandler(fFormat, ww)
 		WarnFileHandler.SetLevel(easylog.WARN)
 		WarnFileHandler.AddFilter(&filter.LevelEqualFilter{Level: easylog.WARN})
 
