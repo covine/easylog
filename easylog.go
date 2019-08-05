@@ -41,10 +41,6 @@ func NewCachedLogger(parent *Logger) *Logger {
 	}
 }
 
-func SetPropagate(propagate bool) {
-	root.SetPropagate(propagate)
-}
-
 func SetLevel(level Level) {
 	root.SetLevel(level)
 }
