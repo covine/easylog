@@ -155,13 +155,13 @@ func ExampleEasylog_RotateFile() {
 包结构
 a 
 │
-└───a/b
+└───b
 │   │
-│   └───a/b/c
+│   └───c
 │   
-└───a/d
+└───d
 │   │
-│   └───a/d/e
+│   └───e
 ```
 
 对应层级logger
@@ -175,5 +175,117 @@ a
 	// ade 收集的日志会流经 ad 的 handlers
 ```
 
+```go
+// a 包
+package c
+
+import (
+	"git.qutoutiao.net/govine/easylog"
+)
+
+var logger *easylog.Logger
+
+func init() {
+	logger = easylog.GetLogger("a")
+}
+
+func Test() {
+	logger.Debug().Msg("hello world")
+}
+```
+
+```go
+// c 包
+package c
+
+import (
+	"git.qutoutiao.net/govine/easylog"
+)
+
+var logger *easylog.Logger
+
+func init() {
+	logger = easylog.GetLogger("a.b.c")
+}
+
+func Test() {
+	logger.Debug().Msg("hello world")
+}
+```
+
 ### 自定义handler
 
+```go
+/*
+实现
+type IHandler interface {
+	Handle(*Record)
+	Flush()
+	Close()
+}
+接口
+使用 easylog.NewEasyLogHandler() 包装
+*/
+package handler
+
+import (
+	"fmt"
+	"os"
+
+	"git.qutoutiao.net/govine/easylog"
+)
+
+type StderrHandler struct {
+	format easylog.Formatter
+}
+
+func (s *StderrHandler) Handle(record *easylog.Record) {
+	var str string
+	if s.format != nil {
+		str = s.format(record)
+	} else {
+		str = fmt.Sprintf(record.Message, record.Args...)
+	}
+
+	_, _ = os.Stderr.Write([]byte(str + "\n"))
+}
+
+func (s *StderrHandler) Flush() {
+}
+
+func (s *StderrHandler) Close() {
+}
+
+func NewStderrHandler(format easylog.Formatter) easylog.IEasyLogHandler {
+	return easylog.NewEasyLogHandler(&StderrHandler{
+		format: format,
+	})
+}
+
+```
+
+### 请求内异步
+
+> Note: 异步的前提是日志的顺序得到保证
+
+```go
+{
+	// 设置接收的父级logger
+	logger := easylog.NewCachedLogger(parentLogger)
+	// 打开向父级传递
+	logger.SetPropagate(true)
+	// 设置等级
+	logger.SetLevelByString("info")
+	// 打开某些级别的执行上下文记录
+	logger.EnableFrame(easylog.DEBUG)
+	logger.EnableFrame(easylog.WARN)
+	logger.EnableFrame(easylog.WARNING)
+	logger.EnableFrame(easylog.FATAL)
+	
+	defer func() {
+		// 在请求结束后异步按顺序处理
+		// 会触发父级的处理
+		go logger.Close()
+	}()
+}
+```
