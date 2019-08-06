@@ -80,6 +80,7 @@ func TestStderrConcurrence(t *testing.T) {
 		l.AddHandler(stdHandler)
 
 		l.Debug().Msg("debug: %s", "test")
+		l.Debug().Tag("hello").Msg("world")
 		l.Flush()
 		l.Info().Msg("info: %s", "test")
 		l.Warn().Msg("warn: %s", "test")
@@ -108,6 +109,12 @@ func TestStderrConcurrence(t *testing.T) {
 				}()
 
 				s.Debug().Msg("s debug: %s", "test")
+				s.Debug().Tag("hello").Msg("s debug: %s", "test")
+				s.Warn().Tag("hello").Msg("s debug: %s", "test")
+				s.Debug().Fields(map[string]interface{}{"h": "w"}).Msg("s debug: %s", "test")
+				s.Warn().Fields(map[string]interface{}{"h": "w"}).Msg("s debug: %s", "test")
+				s.Debug().Extra("h").Msg("s debug: %s", "test")
+				s.Warn().Extra("h").Msg("s debug: %s", "test")
 				s.Info().Msg("s info: %s", "test")
 				s.Warn().Msg("s warn: %s", "test")
 				s.Warning().Msg("s warning: %s", "test")
@@ -118,8 +125,8 @@ func TestStderrConcurrence(t *testing.T) {
 		w.Wait()
 
 		l.Flush()
-		l.RemoveHandler(stdHandler)
 		l.Close()
+		l.RemoveHandler(stdHandler)
 	})
 }
 
