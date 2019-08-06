@@ -3,10 +3,9 @@ package easylog_test
 import (
 	"encoding/json"
 
-	"github.com/govine/easylog/filter"
-
-	"github.com/govine/easylog"
-	"github.com/govine/easylog/handler"
+	"git.qutoutiao.net/govine/easylog"
+	"git.qutoutiao.net/govine/easylog/filter"
+	"git.qutoutiao.net/govine/easylog/handler"
 )
 
 func ExampleEasylog_SimpleStdout() {

@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/govine/easylog"
+	"git.qutoutiao.net/govine/easylog"
 )
 
 type FileHandler struct {

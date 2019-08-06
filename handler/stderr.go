@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/govine/easylog"
+	"git.qutoutiao.net/govine/easylog"
 )
 
 type StderrHandler struct {

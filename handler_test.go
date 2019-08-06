@@ -8,11 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/govine/easylog/filter"
-	"github.com/govine/easylog/writer"
-
-	"github.com/govine/easylog"
-	"github.com/govine/easylog/handler"
+	"git.qutoutiao.net/govine/easylog"
+	"git.qutoutiao.net/govine/easylog/filter"
+	"git.qutoutiao.net/govine/easylog/handler"
+	"git.qutoutiao.net/govine/easylog/writer"
 )
 
 func TestHandler(t *testing.T) {

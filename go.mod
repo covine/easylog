@@ -1,4 +1,4 @@
-module github.com/govine/easylog
+module git.qutoutiao.net/govine/easylog
 
 go 1.12
 

@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"github.com/govine/easylog"
+	"git.qutoutiao.net/govine/easylog"
 )
 
 type IWriter interface {

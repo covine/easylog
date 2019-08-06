@@ -3,8 +3,8 @@ package easylog_test
 import (
 	"testing"
 
-	"github.com/govine/easylog"
-	"github.com/govine/easylog/filter"
+	"git.qutoutiao.net/govine/easylog"
+	"git.qutoutiao.net/govine/easylog/filter"
 )
 
 func TestFilter(t *testing.T) {
