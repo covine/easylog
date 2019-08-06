@@ -63,3 +63,26 @@ func ExampleEasylog_SimpleFormat() {
 	// {"fields":{"name":"dog"},"msg":"hello"}
 	easylog.RemoveHandler(stdoutHandler)
 }
+
+func ExampleEasylog_Tag() {
+	stdoutHandler := handler.NewStdoutHandler(format)
+	easylog.AddHandler(stdoutHandler)
+	easylog.SetLevel(easylog.WARN)
+	easylog.SetLevelByString("DEBUG")
+	easylog.EnableFrame(easylog.FATAL)
+	easylog.DisableFrame(easylog.FATAL)
+
+	f := &filter.LevelEqualFilter{Level: easylog.WARN}
+	easylog.AddFilter(f)
+	easylog.RemoveFilter(f)
+	easylog.SetCached(true)
+	easylog.SetCached(false)
+	easylog.Debug().Tag("dog").Msg("hello")
+	easylog.Debug().Tag("dog").Msg("hello")
+	easylog.Warn().Tag("dog").Msg("hello")
+	easylog.Warn().Tag("dog").Msg("hello")
+	easylog.Debug().Fields(map[string]interface{}{"name": "dog"}).Msg("hello")
+	easylog.Debug().Extra("hello").Msg("world")
+	easylog.Warn().Extra("hello").Msg("world")
+	easylog.RemoveHandler(stdoutHandler)
+}

@@ -15,6 +15,39 @@ import (
 	"github.com/govine/easylog/handler"
 )
 
+func TestHandler(t *testing.T) {
+	t.Run("handler", func(t *testing.T) {
+		l := easylog.GetLogger("filter")
+		if l.HasHandler() {
+			t.Errorf("must not have handler")
+			return
+		}
+		h := handler.NewStdoutHandler(nil)
+		l.RemoveHandler(h)
+		h.SetLevelByString("DEBUG")
+		h.SetLevelByString("INFO")
+		h.SetLevelByString("WARN")
+		h.SetLevelByString("WARNING")
+		h.SetLevelByString("ERROR")
+		h.SetLevelByString("FATAL")
+		h.SetLevelByString("")
+		if h.GetLevel() != easylog.FATAL {
+			t.Errorf("must be fatal")
+			return
+		}
+		l.AddHandler(nil)
+		if l.HasHandler() {
+			t.Errorf("must not have handlers")
+			return
+		}
+		l.AddHandler(h)
+		l.AddHandler(h)
+		l.RemoveHandler(nil)
+		l.RemoveHandler(h)
+		l.Close()
+	})
+}
+
 func TestFileHandler(t *testing.T) {
 	fileHandler, err := handler.NewFileHandler("./log/file.log", nil)
 	if err != nil {
@@ -62,8 +95,9 @@ func TestStderrConcurrence(t *testing.T) {
 				defer w.Done()
 
 				s := easylog.NewCachedLogger(l)
-				s.SetLevel(easylog.DEBUG)
+				s.SetLevel(easylog.INFO)
 				s.SetPropagate(true)
+				s.DisableFrame(easylog.DEBUG)
 				s.EnableFrame(easylog.DEBUG)
 				s.EnableFrame(easylog.INFO)
 				s.EnableFrame(easylog.ERROR)
