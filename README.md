@@ -1,6 +1,6 @@
 # Easy Logger
 
-[![godoc](http://img.shields.io/badge/godoc-reference-blue.svg?style=flat)](https://godoc.org/github.com/govine)[![license](https://img.shields.io/github/license/govine/easylog)](https://github.com/govine/blob/master/LICENSE)[![Build Status](https://travis-ci.com/govine/easylog.svg?branch=master)](https://travis-ci.com/govine/easylog)[![Coverage](https://gocover.io/_badge/github.com/govine)](https://gocover.io/github.com/govine)
+[![godoc](http://img.shields.io/badge/godoc-reference-blue.svg?style=flat)](https://godoc.org/github.com/govine/easylog)[![license](https://img.shields.io/github/license/govine/easylog)](https://github.com/govine/blob/master/LICENSE)[![Build Status](https://travis-ci.com/govine/easylog.svg?branch=master)](https://travis-ci.com/govine/easylog)[![Coverage](https://gocover.io/_badge/github.com/govine/easylog)](https://gocover.io/github.com/govine/easylog)
 
 ## 特性
 
