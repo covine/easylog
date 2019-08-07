@@ -78,16 +78,10 @@ func (m *manager) fixUpParents(l *Logger) {
 			placeHolder.placeholderMap[l] = nil
 			m.loggerMap[subStr] = placeHolder
 		} else {
-			tl, o := m.loggerMap[subStr]
-			if !o {
-				// should not be here
-				rv = m.root
-			}
-
-			if !tl.isPlaceholder {
-				rv = tl
+			if !m.loggerMap[subStr].isPlaceholder {
+				rv = m.loggerMap[subStr]
 			} else {
-				tl.placeholderMap[l] = nil
+				m.loggerMap[subStr].placeholderMap[l] = nil
 			}
 		}
 		i = strings.LastIndexByte(subStr, '.')

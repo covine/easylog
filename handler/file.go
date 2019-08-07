@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 
@@ -18,7 +17,7 @@ func (f *FileHandler) Handle(record *easylog.Record) {
 	if f.format != nil {
 		str = f.format(record)
 	} else {
-		str = fmt.Sprintf(record.Message, record.Args...)
+		str = record.Message
 	}
 
 	_, _ = f.f.Write([]byte(str + "\n"))

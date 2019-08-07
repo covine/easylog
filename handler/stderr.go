@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"fmt"
 	"os"
 
 	"git.qutoutiao.net/govine/easylog"
@@ -16,7 +15,7 @@ func (s *StderrHandler) Handle(record *easylog.Record) {
 	if s.format != nil {
 		str = s.format(record)
 	} else {
-		str = fmt.Sprintf(record.Message, record.Args...)
+		str = record.Message
 	}
 
 	_, _ = os.Stderr.Write([]byte(str + "\n"))

@@ -1,6 +1,7 @@
 package easylog
 
 import (
+	"fmt"
 	"sync"
 	"time"
 )
@@ -12,7 +13,6 @@ type Record struct {
 	Time      time.Time
 	Level     Level
 	Message   string
-	Args      []interface{}
 	FieldMap  map[string]interface{}
 	Tags      []string
 	ExtraData interface{}
@@ -38,7 +38,6 @@ func newRecord() *Record {
 	r.Time = time.Time{}
 	r.Level = NOTSET
 	r.Message = ""
-	r.Args = nil
 	r.FieldMap = nil
 	r.Tags = nil
 	r.ExtraData = nil
@@ -109,8 +108,12 @@ func (r *Record) Msg(msg string, args ...interface{}) {
 	}
 
 	r.Time = time.Now()
-	r.Message = msg
-	r.Args = args
+
+	if len(args) > 0 {
+		r.Message = fmt.Sprintf(msg, args...)
+	} else {
+		r.Message = msg
+	}
 
 	// we can not putRecord() after handleRecord() because Record's logger or it's parent logger can be cachedLogger
 	r.Logger.handleRecord(r)

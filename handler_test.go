@@ -1,7 +1,6 @@
 package easylog_test
 
 import (
-	"fmt"
 	"path"
 	"strconv"
 	"sync"
@@ -222,7 +221,6 @@ func fFormat(record *easylog.Record) string {
 		prefix = "UNKNOWN LEVEL: "
 	}
 
-	var body string
 	var head string
 	if record.Level == easylog.INFO {
 		head = prefix + " " + time.Now().Format("2006-01-02 15:04:05") + " * "
@@ -235,12 +233,8 @@ func fFormat(record *easylog.Record) string {
 		}
 		head = prefix + " " + time.Now().Format("2006-01-02 15:04:05") + " " + file + " [" + strconv.Itoa(line) + "] * "
 	}
-	if record.Args != nil && len(record.Args) > 0 {
-		body = fmt.Sprintf(record.Message, record.Args...)
-	} else {
-		body = record.Message
-	}
-	return head + body
+
+	return head + record.Message
 }
 
 func TestRotateFileHandler(t *testing.T) {
