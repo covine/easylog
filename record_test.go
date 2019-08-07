@@ -3,7 +3,7 @@ package easylog_test
 import (
 	"testing"
 
-	"git.qutoutiao.net/govine/easylog"
+	"github.com/govine/easylog"
 )
 
 func TestRecord_NIL(t *testing.T) {

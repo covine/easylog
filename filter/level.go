@@ -1,7 +1,7 @@
 package filter
 
 import (
-	"git.qutoutiao.net/govine/easylog"
+	"github.com/govine/easylog"
 )
 
 type LevelEqualFilter struct {
