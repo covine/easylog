@@ -75,11 +75,11 @@ func (r *RotateFileWriter) cut() {
 	_, err := os.Stat(rotateFile)
 	if err != nil {
 		if r.bufWriter != nil {
-			r.bufWriter.Flush()
+			_ = r.bufWriter.Flush()
 			r.bufWriter = nil
 		}
 		if r.fileWriter != nil {
-			r.fileWriter.Close()
+			_ = r.fileWriter.Close()
 			r.fileWriter = nil
 		}
 
@@ -101,7 +101,9 @@ func (r *RotateFileWriter) cut() {
 				// 如果创建xx.20190522150400 不成功，不影响日志写入，使用原有文件 xx.log
 				log.Printf("create rotate file fail: %v", err)
 			}
-			rf.Close()
+			if rf != nil {
+				_ = rf.Close()
+			}
 		} else {
 			// 存在 xx.log 文件, 重命名 xx.log -> xx.20190522150400
 			e := os.Rename(r.file, rotateFile)
@@ -125,7 +127,7 @@ func (r *RotateFileWriter) cut() {
 
 func (r *RotateFileWriter) calSleepTime() time.Duration {
 	nowTime := time.Now().Unix()
-	nextTime := int64(nowTime/r.interval+1) * r.interval
+	nextTime := (nowTime/r.interval + 1) * r.interval
 	return time.Duration(nextTime - nowTime)
 }
 
@@ -174,13 +176,13 @@ func (r *RotateFileWriter) Close() {
 	r.cancel()
 
 	if r.bufWriter != nil {
-		r.bufWriter.Flush()
+		_ = r.bufWriter.Flush()
 		r.bufWriter = nil
 	}
 
 	// 关闭文件
 	if r.fileWriter != nil {
-		r.fileWriter.Close()
+		_ = r.fileWriter.Close()
 		r.fileWriter = nil
 	}
 }

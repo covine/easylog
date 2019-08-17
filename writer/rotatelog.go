@@ -2,24 +2,25 @@ package writer
 
 import (
 	"bufio"
+	"sync"
 	"time"
 
-	"github.com/lestrrat-go/file-rotatelogs"
+	rl "github.com/lestrrat-go/file-rotatelogs"
 )
 
 type RotateLogWriter struct {
-	fileWriter *rotatelogs.RotateLogs
-	bufWriter  *bufio.Writer
+	mu        sync.RWMutex
+	bufWriter *bufio.Writer
+	rlw       *rl.RotateLogs
 }
 
 func NewRotateLogWriter(format, linkFile string, rotate, maxAge time.Duration, bufSize int) (*RotateLogWriter, error) {
-	f, err := rotatelogs.New(
+	rlw, err := rl.New(
 		format,
-		rotatelogs.WithLinkName(linkFile),
-		rotatelogs.WithRotationTime(rotate),
-		rotatelogs.WithMaxAge(maxAge),
+		rl.WithLinkName(linkFile),
+		rl.WithRotationTime(rotate),
+		rl.WithMaxAge(maxAge),
 	)
-
 	if err != nil {
 		return nil, err
 	}
@@ -33,10 +34,28 @@ func NewRotateLogWriter(format, linkFile string, rotate, maxAge time.Duration, b
 		bs = bufSize
 	}
 
-	bufWriter := bufio.NewWriterSize(f, bs)
-
 	return &RotateLogWriter{
-		fileWriter: f,
-		bufWriter:  bufWriter,
+		bufWriter: bufio.NewWriterSize(rlw, bs),
+		rlw:       rlw,
 	}, nil
+}
+
+func (r *RotateLogWriter) Write(p []byte) (n int, err error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.bufWriter.Write(p)
+}
+
+func (r *RotateLogWriter) Flush() error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.bufWriter.Flush()
+}
+
+func (r *RotateLogWriter) Close() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	_ = r.bufWriter.Flush()
+	_ = r.rlw.Close()
 }
