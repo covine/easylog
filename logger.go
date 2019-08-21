@@ -27,16 +27,25 @@ type Logger struct {
 }
 
 func (l *Logger) SetPropagate(propagate bool) {
+	if l == nil {
+		return
+	}
 	l.propagate = propagate
 }
 
 func (l *Logger) SetLevel(level Level) {
+	if l == nil {
+		return
+	}
 	if IsLevel(level) {
 		l.level = level
 	}
 }
 
 func (l *Logger) SetLevelByString(level string) {
+	if l == nil {
+		return
+	}
 	switch level {
 	case "DEBUG":
 		l.level = DEBUG
@@ -56,6 +65,9 @@ func (l *Logger) SetLevelByString(level string) {
 }
 
 func (l *Logger) EnableFrame(level Level) {
+	if l == nil {
+		return
+	}
 	if IsLevel(level) {
 		if l.stack == nil {
 			l.stack = make(map[Level]bool)
@@ -65,6 +77,9 @@ func (l *Logger) EnableFrame(level Level) {
 }
 
 func (l *Logger) DisableFrame(level Level) {
+	if l == nil {
+		return
+	}
 	if IsLevel(level) {
 		if l.stack == nil {
 			l.stack = make(map[Level]bool)
@@ -85,30 +100,57 @@ func (l *Logger) needRecordFrame(level Level) bool {
 }
 
 func (l *Logger) SetCached(cached bool) {
+	if l == nil {
+		return
+	}
+
 	l.cached = cached
 }
 
 func (l *Logger) Debug() *Record {
+	if l == nil {
+		return nil
+	}
+
 	return l.log(DEBUG)
 }
 
 func (l *Logger) Info() *Record {
+	if l == nil {
+		return nil
+	}
+
 	return l.log(INFO)
 }
 
 func (l *Logger) Warning() *Record {
+	if l == nil {
+		return nil
+	}
+
 	return l.log(WARNING)
 }
 
 func (l *Logger) Warn() *Record {
+	if l == nil {
+		return nil
+	}
+
 	return l.log(WARN)
 }
 
 func (l *Logger) Error() *Record {
+	if l == nil {
+		return nil
+	}
+
 	return l.log(ERROR)
 }
 
 func (l *Logger) Fatal() *Record {
+	if l == nil {
+		return nil
+	}
 	return l.log(FATAL)
 }
 
@@ -159,6 +201,10 @@ func (l *Logger) handleRecord(record *Record) {
 }
 
 func (l *Logger) Flush() {
+	if l == nil {
+		return
+	}
+
 	if l.cached {
 		l.mu.Lock()
 		defer l.mu.Unlock()
@@ -177,6 +223,10 @@ func (l *Logger) Flush() {
 }
 
 func (l *Logger) Close() {
+	if l == nil {
+		return
+	}
+
 	l.Flush()
 	l.Handlers.Close()
 }
