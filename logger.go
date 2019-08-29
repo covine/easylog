@@ -42,6 +42,13 @@ func (l *Logger) SetLevel(level Level) {
 	}
 }
 
+func (l *Logger) GetLevel() Level {
+	if l == nil {
+		return NOTSET
+	}
+	return l.level
+}
+
 func (l *Logger) SetLevelByString(level string) {
 	if l == nil {
 		return
