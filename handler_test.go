@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/govine/easylog"
-	"github.com/govine/easylog/filter"
-	"github.com/govine/easylog/handler"
-	"github.com/govine/easylog/writer"
+	"github.com/covine/easylog"
+	"github.com/covine/easylog/filter"
+	"github.com/covine/easylog/handler"
+	"github.com/covine/easylog/writer"
 )
 
 func TestHandler(t *testing.T) {

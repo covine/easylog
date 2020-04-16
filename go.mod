@@ -1,6 +1,6 @@
-module github.com/govine/easylog
+module github.com/covine/easylog
 
-go 1.12
+go 1.13
 
 require (
 	github.com/fastly/go-utils v0.0.0-20180712184237-d95a45783239 // indirect

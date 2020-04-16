@@ -3,8 +3,8 @@ package easylog_test
 import (
 	"testing"
 
-	"github.com/govine/easylog"
-	"github.com/govine/easylog/filter"
+	"github.com/covine/easylog"
+	"github.com/covine/easylog/filter"
 )
 
 func TestLogger_SetLevelByString(t *testing.T) {

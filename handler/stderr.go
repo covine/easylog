@@ -3,7 +3,7 @@ package handler
 import (
 	"os"
 
-	"github.com/govine/easylog"
+	"github.com/covine/easylog"
 )
 
 type StderrHandler struct {
