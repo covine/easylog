@@ -21,7 +21,7 @@ type IEasyLogHandler interface {
 }
 
 // NewEasyLogHandler
-// > :careful Record will be recycled after being handled, make sure do not cache Record in Handler.
+// :eyes: Record will be recycled after being handled, make sure do not cache Record in Handler.
 func NewEasyLogHandler(ih IHandler) IEasyLogHandler {
 	return &handlerWrapper{
 		handler: ih,
