@@ -20,7 +20,8 @@ type IEasyLogHandler interface {
 	GetLevel() Level
 }
 
-// warning: Record will be recycled after Handler, so, do not cache Record in Handler
+// NewEasyLogHandler
+// > :careful Record will be recycled after being handled, make sure do not cache Record in Handler.
 func NewEasyLogHandler(ih IHandler) IEasyLogHandler {
 	return &handlerWrapper{
 		handler: ih,
@@ -88,6 +89,7 @@ func (h *handlerWrapper) Close() {
 	}
 }
 
+// Handlers
 // not thread safe, set handlers during init
 type Handlers struct {
 	handlers *list.List
