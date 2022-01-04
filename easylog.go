@@ -1,52 +1,34 @@
 package easylog
 
 var m *manager
-var root *Logger
+var root *logger
 
 func init() {
 	m = &manager{
-		loggerMap: make(map[string]*Logger),
+		loggerMap: make(map[string]*logger),
 	}
 
-	root = &Logger{
-		name:           "root",
-		manager:        m,
-		level:          NOTSET,
-		parent:         nil,
-		propagate:      true,
-		isPlaceholder:  false,
-		placeholderMap: make(map[*Logger]interface{}),
-	}
+	root = newLogger()
+	root.name = "root"
+	root.manager = m
+
 	m.root = root
 }
 
-func GetRootLogger() *Logger {
-	return m.root
-}
-
-func GetLogger(name string) *Logger {
+func GetLogger(name string) *logger {
 	return m.getLogger(name)
 }
 
-func NewCachedLogger(parent *Logger) *Logger {
-	return &Logger{
-		name:           "",
-		manager:        m,
-		cached:         true,
-		level:          NOTSET,
-		parent:         parent,
-		propagate:      false,
-		isPlaceholder:  false,
-		placeholderMap: make(map[*Logger]interface{}),
-	}
+func GetRootLogger() *logger {
+	return m.root
 }
 
 func SetLevel(level Level) {
 	root.SetLevel(level)
 }
 
-func SetLevelByString(level string) {
-	root.SetLevelByString(level)
+func GetLevel() Level {
+	return root.GetLevel()
 }
 
 func EnableFrame(level Level) {
@@ -57,46 +39,65 @@ func DisableFrame(level Level) {
 	root.DisableFrame(level)
 }
 
+func AddFilter(f IFilter) {
+	root.AddFilter(f)
+}
+
+func RemoveFilter(f IFilter) {
+	root.RemoveFilter(f)
+}
+
+func AddHandler(h IHandler) {
+	root.AddHandler(h)
+}
+
+func RemoveHandler(h IHandler) {
+	root.RemoveHandler(h)
+}
+
+func Debug() *Event {
+	return root.log(DEBUG, 2)
+}
+
+func Info() *Event {
+	return root.log(INFO, 2)
+}
+
+func Warn() *Event {
+	return root.log(WARN, 2)
+}
+
+func Error() *Event {
+	return root.log(ERROR, 2)
+}
+
+func Fatal() *Event {
+	return root.log(FATAL, 2)
+}
+
+func Flush() {
+	root.Flush()
+}
+
+func Close() {
+	root.Close()
+}
+
+/*
+func NewCachedLogger(parent *logger) *logger {
+	return &logger{
+		name:        "",
+		manager:     m,
+		cached:      true,
+		level:       INFO,
+		parent:      parent,
+		propagate:   false,
+		placeholder: false,
+		children:    make(map[*logger]interface{}),
+	}
+}
+
 func SetCached(cached bool) {
 	root.SetCached(cached)
 }
-
-func AddFilter(fi IFilter) {
-	root.AddFilter(fi)
-}
-
-func RemoveFilter(fi IFilter) {
-	root.RemoveFilter(fi)
-}
-
-func AddHandler(hw IEasyLogHandler) {
-	root.AddHandler(hw)
-}
-
-func RemoveHandler(hw IEasyLogHandler) {
-	root.RemoveHandler(hw)
-}
-
-func Debug() *Record {
-	return root.Debug()
-}
-
-func Info() *Record {
-	return root.Info()
-}
-
-func Warning() *Record {
-	return root.Warning()
-}
-
-func Warn() *Record {
-	return root.Warn()
-}
-
-func Error() *Record {
-	return root.Error()
-}
-
-func Fatal() *Record {
-	return root.Fatal()
-}
+*/

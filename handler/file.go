@@ -12,7 +12,7 @@ type FileHandler struct {
 	f      *os.File
 }
 
-func (f *FileHandler) Handle(record *easylog.Record) {
+func (f *FileHandler) Handle(record *easylog.Event) {
 	var str string
 	if f.format != nil {
 		str = f.format(record)

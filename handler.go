@@ -4,10 +4,11 @@ import (
 	"container/list"
 )
 
-type Formatter func(record *Record) string
+type Formatter func(record *Event) string
 
+// IHandler mockery --name=IHandler --inpackage --case=underscore --filename=handler_mock.go --structname MockHandler
 type IHandler interface {
-	Handle(*Record)
+	Handle(*Event)
 	Flush()
 	Close()
 }
@@ -16,12 +17,11 @@ type IEasyLogHandler interface {
 	IHandler
 	IFilters
 	SetLevel(Level)
-	SetLevelByString(level string)
 	GetLevel() Level
 }
 
 // NewEasyLogHandler
-// :eyes: Record will be recycled after being handled, make sure do not cache Record in Handler.
+// Note: Event will be recycled after being handled, make sure do not cache Event in the Handler.
 func NewEasyLogHandler(ih IHandler) IEasyLogHandler {
 	return &handlerWrapper{
 		handler: ih,
@@ -35,35 +35,14 @@ type handlerWrapper struct {
 }
 
 func (h *handlerWrapper) SetLevel(level Level) {
-	if IsLevel(level) {
-		h.level = level
-	}
-}
-
-func (h *handlerWrapper) SetLevelByString(level string) {
-	switch level {
-	case "DEBUG":
-		h.level = DEBUG
-	case "INFO":
-		h.level = INFO
-	case "WARN":
-		h.level = WARN
-	case "WARNING":
-		h.level = WARNING
-	case "ERROR":
-		h.level = ERROR
-	case "FATAL":
-		h.level = FATAL
-	default:
-		return
-	}
+	h.level = level
 }
 
 func (h *handlerWrapper) GetLevel() Level {
 	return h.level
 }
 
-func (h *handlerWrapper) Handle(record *Record) {
+func (h *handlerWrapper) Handle(record *Event) {
 	if record.Level < h.level {
 		return
 	}
@@ -147,7 +126,7 @@ func (h *Handlers) HasHandler() bool {
 	}
 }
 
-func (h *Handlers) Handle(record *Record) {
+func (h *Handlers) Handle(record *Event) {
 	if h.handlers == nil {
 		return
 	}

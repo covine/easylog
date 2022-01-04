@@ -4,19 +4,26 @@ import (
 	"container/list"
 )
 
+// IFilter mockery --name=IFilter --inpackage --case=underscore --filename=filter_mock.go --structname MockFilter
 type IFilter interface {
-	Filter(*Record) bool
+	Filter(*Event) bool
 }
 
 type IFilters interface {
 	AddFilter(IFilter)
 	RemoveFilter(IFilter)
-	Filter(*Record) bool
+	Filter(*Event) bool
 }
 
 // not thread safe, set filters during init
 type Filters struct {
 	filters *list.List
+}
+
+func newFilters() *Filters {
+	return &Filters{
+		filters: list.New(),
+	}
 }
 
 func (f *Filters) AddFilter(fi IFilter) {
@@ -63,7 +70,7 @@ func (f *Filters) RemoveFilter(fi IFilter) {
 	}
 }
 
-func (f *Filters) Filter(record *Record) bool {
+func (f *Filters) Filter(record *Event) bool {
 	if f.filters == nil {
 		return true
 	}

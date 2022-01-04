@@ -275,7 +275,6 @@ func NewStderrHandler(format easylog.Formatter) easylog.IEasyLogHandler {
 	// 打开向父级传递
 	logger.SetPropagate(true)
 	// 设置等级
-	logger.SetLevelByString("info")
 	// 打开某些级别的执行上下文记录
 	logger.EnableFrame(easylog.DEBUG)
 	logger.EnableFrame(easylog.WARN)

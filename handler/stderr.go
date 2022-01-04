@@ -10,7 +10,7 @@ type StderrHandler struct {
 	format easylog.Formatter
 }
 
-func (s *StderrHandler) Handle(record *easylog.Record) {
+func (s *StderrHandler) Handle(record *easylog.Event) {
 	var str string
 	if s.format != nil {
 		str = s.format(record)

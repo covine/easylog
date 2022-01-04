@@ -1,239 +1,311 @@
 package easylog
 
 import (
+	"container/list"
 	"runtime"
-	"sync"
 )
 
-type Logger struct {
-	manager        *manager
-	isPlaceholder  bool
-	placeholderMap map[*Logger]interface{}
+type logger struct {
+	manager *manager
 
-	name   string
-	parent *Logger
+	parent   *logger
+	children map[*logger]struct{}
 
-	propagate bool
+	name        string
+	placeholder bool
+	propagate   bool
+	level       Level
+	stack       map[Level]bool
 
-	level Level
-	stack map[Level]bool
-	Filters
+	tags map[string]interface{}
+	kvs  map[string]interface{}
 
-	Handlers
-
-	mu            sync.Mutex
-	cached        bool
-	cachedRecords []*Record
+	filters  *list.List
+	handlers *list.List
 }
 
-func (l *Logger) SetPropagate(propagate bool) {
-	if l == nil {
-		return
+func newLogger() *logger {
+	return &logger{
+		manager:     nil,
+		parent:      nil,
+		children:    make(map[*logger]struct{}),
+		name:        "",
+		placeholder: false,
+		propagate:   false,
+		level:       INFO,
+		stack:       make(map[Level]bool),
+		tags:        make(map[string]interface{}),
+		kvs:         make(map[string]interface{}),
+		filters:     list.New(),
+		handlers:    list.New(),
 	}
+}
+
+func (l *logger) SetPropagate(propagate bool) {
 	l.propagate = propagate
 }
 
-func (l *Logger) SetLevel(level Level) {
-	if l == nil {
-		return
-	}
-	if IsLevel(level) {
-		l.level = level
-	}
+func (l *logger) GetPropagate() bool {
+	return l.propagate
 }
 
-func (l *Logger) GetLevel() Level {
-	if l == nil {
-		return NOTSET
-	}
+func (l *logger) SetLevel(level Level) {
+	l.level = level
+}
+
+func (l *logger) GetLevel() Level {
 	return l.level
 }
 
-func (l *Logger) SetLevelByString(level string) {
-	if l == nil {
-		return
-	}
-	switch level {
-	case "DEBUG":
-		l.level = DEBUG
-	case "INFO":
-		l.level = INFO
-	case "WARN":
-		l.level = WARN
-	case "WARNING":
-		l.level = WARNING
-	case "ERROR":
-		l.level = ERROR
-	case "FATAL":
-		l.level = FATAL
-	default:
-		return
-	}
+func (l *logger) EnableFrame(level Level) {
+	l.stack[level] = true
 }
 
-func (l *Logger) EnableFrame(level Level) {
-	if l == nil {
-		return
-	}
-	if IsLevel(level) {
-		if l.stack == nil {
-			l.stack = make(map[Level]bool)
+func (l *logger) DisableFrame(level Level) {
+	l.stack[level] = false
+}
+
+func (l *logger) AddFilter(f IFilter) {
+	find := false
+	for ele := l.filters.Front(); ele != nil; ele = ele.Next() {
+		filter, ok := ele.Value.(IFilter)
+		if ok && filter == f {
+			find = true
+			break
 		}
-		l.stack[level] = true
 	}
-}
 
-func (l *Logger) DisableFrame(level Level) {
-	if l == nil {
+	if find {
 		return
-	}
-	if IsLevel(level) {
-		if l.stack == nil {
-			l.stack = make(map[Level]bool)
-		}
-		l.stack[level] = false
+	} else {
+		l.filters.PushBack(f)
 	}
 }
 
-func (l *Logger) needRecordFrame(level Level) bool {
-	if l.stack == nil {
-		return false
+func (l *logger) RemoveFilter(f IFilter) {
+	var next *list.Element
+	for ele := l.filters.Front(); ele != nil; ele = next {
+		next = ele.Next()
+		filter, ok := ele.Value.(IFilter)
+		if ok && filter == f {
+			l.filters.Remove(ele)
+		}
 	}
-	need, ok := l.stack[level]
-	if ok {
+}
+
+func (l *logger) AddHandler(h IHandler) {
+	find := false
+	for ele := l.handlers.Front(); ele != nil; ele = ele.Next() {
+		handler, ok := ele.Value.(IHandler)
+		if ok && handler == h {
+			find = true
+			break
+		}
+	}
+
+	if find {
+		return
+	} else {
+		l.handlers.PushBack(h)
+	}
+}
+
+func (l *logger) RemoveHandler(h IHandler) {
+	var next *list.Element
+	for ele := l.handlers.Front(); ele != nil; ele = next {
+		next = ele.Next()
+		handler, ok := ele.Value.(IHandler)
+		if ok && handler == h {
+			l.handlers.Remove(ele)
+		}
+	}
+}
+
+func (l *logger) Debug() *Event {
+	return l.log(DEBUG, 2)
+}
+
+func (l *logger) Info() *Event {
+	return l.log(INFO, 2)
+}
+
+func (l *logger) Warn() *Event {
+	return l.log(WARN, 2)
+}
+
+func (l *logger) Error() *Event {
+	return l.log(ERROR, 2)
+}
+
+func (l *logger) Fatal() *Event {
+	return l.log(FATAL, 2)
+}
+
+func (l *logger) Flush() {
+	for ele := l.handlers.Front(); ele != nil; ele = ele.Next() {
+		handler, ok := ele.Value.(IHandler)
+		if ok && handler != nil {
+			handler.Flush()
+		}
+	}
+}
+
+func (l *logger) Close() {
+	l.Flush()
+
+	for ele := l.handlers.Front(); ele != nil; ele = ele.Next() {
+		handler, ok := ele.Value.(IHandler)
+		if ok && handler != nil {
+			handler.Close()
+		}
+	}
+}
+
+func (l *logger) needFrame(level Level) bool {
+	if need, ok := l.stack[level]; ok {
 		return need
 	}
+
 	return false
 }
 
-func (l *Logger) SetCached(cached bool) {
-	if l == nil {
-		return
-	}
-
-	l.cached = cached
-}
-
-func (l *Logger) Debug() *Record {
-	if l == nil {
-		return nil
-	}
-
-	return l.log(DEBUG)
-}
-
-func (l *Logger) Info() *Record {
-	if l == nil {
-		return nil
-	}
-
-	return l.log(INFO)
-}
-
-func (l *Logger) Warning() *Record {
-	if l == nil {
-		return nil
-	}
-
-	return l.log(WARNING)
-}
-
-func (l *Logger) Warn() *Record {
-	if l == nil {
-		return nil
-	}
-
-	return l.log(WARN)
-}
-
-func (l *Logger) Error() *Record {
-	if l == nil {
-		return nil
-	}
-
-	return l.log(ERROR)
-}
-
-func (l *Logger) Fatal() *Record {
-	if l == nil {
-		return nil
-	}
-	return l.log(FATAL)
-}
-
-func (l *Logger) log(level Level) *Record {
+func (l *logger) log(level Level, skip int) *Event {
 	if level < l.level {
 		return nil
 	}
 
-	record := newRecord()
-	record.Logger = l
-	record.Level = level
-	if l.needRecordFrame(level) {
-		record.PC, record.File, record.Line, record.OK = runtime.Caller(2)
+	event := newEvent()
+	event.Logger = l
+	event.Level = level
+	if l.needFrame(level) {
+		event.PC, event.File, event.Line, event.OK = runtime.Caller(skip)
 	}
 
-	return record
+	return event
 }
 
-func (l *Logger) handleRecord(record *Record) {
+func (l *logger) filter(record *Event) bool {
+	for ele := l.filters.Front(); ele != nil; ele = ele.Next() {
+		filter, ok := ele.Value.(IFilter)
+		if ok && filter != nil {
+			if filter.Filter(record) == false {
+				return false
+			}
+		}
+	}
+
+	return true
+}
+
+func (l *logger) handle(event *Event) {
+	for ele := l.handlers.Front(); ele != nil; ele = ele.Next() {
+		handler, ok := ele.Value.(IHandler)
+		if ok && handler != nil {
+			handler.Handle(event)
+		}
+	}
+}
+
+func (l *logger) handleEvent(record *Event) {
 	if record.Level < l.level {
-		putRecord(record)
+		putEvent(record)
 		return
 	}
 
-	if !l.Filters.Filter(record) {
-		putRecord(record)
+	if !l.filter(record) {
+		putEvent(record)
+		return
+	}
+
+	l.handle(record)
+
+	if l.propagate && l.parent != nil {
+		l.parent.handleEvent(record)
+	} else {
+		putEvent(record)
+	}
+
+	return
+}
+
+/*
+func (l *logger) string() string {
+	var names []string
+	for k, _ := range l.children {
+		names = append(names, k.name)
+	}
+
+	s := fmt.Sprintf("%s:%s", l.name, strings.Join(names, ","))
+
+	for k, _ := range l.children {
+		s = fmt.Sprintf("%s\n%s", s, k.string())
+	}
+
+	return s
+}
+type CachedLogger struct {
+	logger
+
+	mu           sync.Mutex
+	cached       bool
+	cachedEvents []*Event
+}
+
+func (c *CachedLogger) SetCached(cached bool) {
+	c.cached = cached
+}
+
+func (c *CachedLogger) handleEvent(record *Event) {
+	if record.Level < l.level {
+		putEvent(record)
+		return
+	}
+
+	if !l.filter(record) {
+		putEvent(record)
 		return
 	}
 
 	if l.cached {
-		// 缓存 record
 		l.mu.Lock()
 		defer l.mu.Unlock()
-		if l.cachedRecords == nil {
-			l.cachedRecords = make([]*Record, 0)
+
+		if l.cachedEvents == nil {
+			l.cachedEvents = make([]*Event, 0)
 		}
-		l.cachedRecords = append(l.cachedRecords, record)
+		l.cachedEvents = append(l.cachedEvents, record)
+
 		return
 	} else {
 		l.Handlers.Handle(record)
+
 		if l.propagate && l.parent != nil {
-			l.parent.handleRecord(record)
+			l.parent.handleEvent(record)
 		} else {
-			putRecord(record)
+			putEvent(record)
 		}
+
 		return
 	}
 }
 
-func (l *Logger) Flush() {
-	if l == nil {
-		return
-	}
-
+func (c *CachedLogger) Flush() {
 	if l.cached {
 		l.mu.Lock()
 		defer l.mu.Unlock()
-		for _, record := range l.cachedRecords {
+
+		for _, record := range l.cachedEvents {
 			l.Handlers.Handle(record)
 			if l.propagate && l.parent != nil {
-				l.parent.handleRecord(record)
+				l.parent.handleEvent(record)
 			} else {
-				putRecord(record)
+				putEvent(record)
 			}
 		}
-		l.cachedRecords = nil
+
+		l.cachedEvents = nil
 	}
 
 	l.Handlers.Flush()
 }
-
-func (l *Logger) Close() {
-	if l == nil {
-		return
-	}
-
-	l.Flush()
-	l.Handlers.Close()
-}
+*/

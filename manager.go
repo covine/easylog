@@ -7,13 +7,13 @@ import (
 
 type manager struct {
 	mu        sync.RWMutex
-	root      *Logger
-	loggerMap map[string]*Logger
+	root      *logger
+	loggerMap map[string]*logger
 }
 
-func (m *manager) getLogger(name string) *Logger {
+func (m *manager) getLogger(name string) *logger {
 	m.mu.RLock()
-	if l, ok := m.loggerMap[name]; ok && l != nil && !l.isPlaceholder {
+	if l, ok := m.loggerMap[name]; ok && l != nil && !l.placeholder {
 		m.mu.RUnlock()
 		return l
 	}
@@ -23,67 +23,50 @@ func (m *manager) getLogger(name string) *Logger {
 	defer m.mu.Unlock()
 
 	if l, ok := m.loggerMap[name]; ok && l != nil {
-		if l.isPlaceholder {
+		if l.placeholder {
 			ph := l
-			l = &Logger{
-				name:           name,
-				manager:        m,
-				level:          NOTSET,
-				parent:         nil,
-				propagate:      true,
-				isPlaceholder:  false,
-				placeholderMap: make(map[*Logger]interface{}),
-			}
+			l = newLogger()
+			l.name = name
+			l.manager = m
 			m.loggerMap[name] = l
 			m.fixUpChildren(ph, l)
 			m.fixUpParents(l)
 		}
 		return l
 	} else {
-		l := &Logger{
-			name:           name,
-			manager:        m,
-			level:          NOTSET,
-			parent:         nil,
-			propagate:      true,
-			isPlaceholder:  false,
-			placeholderMap: make(map[*Logger]interface{}),
-		}
+		l := newLogger()
+		l.name = name
+		l.manager = m
 		m.loggerMap[name] = l
 		m.fixUpParents(l)
 		return l
 	}
 }
 
-func (m *manager) fixUpParents(l *Logger) {
+func (m *manager) fixUpParents(l *logger) {
 	name := l.name
 	i := strings.LastIndexByte(name, '.')
-	var rv *Logger = nil
+	var rv *logger = nil
 
 	for {
 		if i < 0 || rv != nil {
 			break
 		}
+
 		subStr := name[:i]
 		if _, ok := m.loggerMap[subStr]; !ok {
-			placeHolder := &Logger{
-				name:           "",
-				manager:        nil,
-				level:          NOTSET,
-				parent:         nil,
-				propagate:      true,
-				isPlaceholder:  true,
-				placeholderMap: make(map[*Logger]interface{}),
-			}
-			placeHolder.placeholderMap[l] = nil
+			placeHolder := newLogger()
+			placeHolder.placeholder = true
+			placeHolder.children[l] = struct{}{}
 			m.loggerMap[subStr] = placeHolder
 		} else {
-			if !m.loggerMap[subStr].isPlaceholder {
+			if !m.loggerMap[subStr].placeholder {
 				rv = m.loggerMap[subStr]
 			} else {
-				m.loggerMap[subStr].placeholderMap[l] = nil
+				m.loggerMap[subStr].children[l] = struct{}{}
 			}
 		}
+
 		i = strings.LastIndexByte(subStr, '.')
 	}
 
@@ -94,10 +77,10 @@ func (m *manager) fixUpParents(l *Logger) {
 	l.parent = rv
 }
 
-func (m *manager) fixUpChildren(ph *Logger, l *Logger) {
+func (m *manager) fixUpChildren(ph *logger, l *logger) {
 	name := l.name
 	nameLen := len(name)
-	for c := range ph.placeholderMap {
+	for c := range ph.children {
 		if len(c.parent.name) < nameLen {
 			l.parent = c.parent
 			c.parent = l

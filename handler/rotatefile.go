@@ -15,7 +15,7 @@ type RotateFileHandler struct {
 	writer IWriter
 }
 
-func (r *RotateFileHandler) Handle(record *easylog.Record) {
+func (r *RotateFileHandler) Handle(record *easylog.Event) {
 	if r.writer != nil {
 		s := r.format(record)
 		_, _ = r.writer.Write([]byte(s + "\n"))
