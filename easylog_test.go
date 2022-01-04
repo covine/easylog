@@ -588,6 +588,7 @@ func TestGetLogger(t *testing.T) {
 		assert.Equal(t, 0, len(empty.children))
 
 		a5 := GetLogger("a.b.c.d.e")
+		assert.True(t, r == a5.parent)
 		assert.True(t, GetLogger("a") == a5.parent)
 		assert.Equal(t, root, GetLogger("a").parent)
 		assert.Equal(t, false, GetLogger("a").placeholder)
@@ -606,13 +607,27 @@ func TestGetLogger(t *testing.T) {
 
 		assert.True(t, a5.parent == a4)
 
-		assert.True(t, a5.parent == GetLogger("a.b.c.d"))
-
 		a7 := GetLogger("a.b.c.d.e.d.c")
 		assert.True(t, a7.parent == a5)
 
 		b7 := GetLogger("b.b.c.d.e.d.c")
 		assert.True(t, b7.parent == root)
+
+		c5 := GetLogger("1.2.3.4.5")
+		assert.True(t, c5.parent == root)
+
+		c4 := GetLogger("1.2.3.4")
+		assert.True(t, c4.parent == root)
+		assert.True(t, c5.parent == c4)
+
+		c1 := GetLogger("1")
+		c3 := GetLogger("1.2")
+		assert.True(t, c3.parent == c1)
+		assert.True(t, c4.parent == c3)
+
+		fakeRoot := GetLogger("root")
+		assert.True(t, r != fakeRoot)
+		assert.True(t, r == fakeRoot.parent)
 	})
 
 	t.Run("get logger concurrently", func(t *testing.T) {

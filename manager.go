@@ -77,14 +77,14 @@ func (m *manager) fixUpParents(l *logger) {
 	l.parent = rv
 }
 
-func (m *manager) fixUpChildren(ph *logger, l *logger) {
+func (m *manager) fixUpChildren(placeholder *logger, l *logger) {
 	name := l.name
 	nameLen := len(name)
-	for c := range ph.children {
-		if len(c.parent.name) < nameLen {
-			l.parent = c.parent
+	for c := range placeholder.children {
+		if c.parent == m.root {
+			l.parent = m.root
 			c.parent = l
-		} else if len(c.parent.name) >= nameLen && c.parent.name[:nameLen] != name {
+		} else if len(c.parent.name) < nameLen {
 			l.parent = c.parent
 			c.parent = l
 		}
