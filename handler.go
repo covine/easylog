@@ -1,9 +1,5 @@
 package easylog
 
-import (
-	"container/list"
-)
-
 type Formatter func(record *Event) string
 
 // IHandler mockery --name=IHandler --inpackage --case=underscore --filename=handler_mock.go --structname MockHandler
@@ -13,11 +9,12 @@ type IHandler interface {
 	Close()
 }
 
+/*
 type IEasyLogHandler interface {
 	IHandler
 	IFilters
-	SetLevel(Level)
-	GetLevel() Level
+	SetLevel(level)
+	GetLevel() level
 }
 
 // NewEasyLogHandler
@@ -31,19 +28,19 @@ func NewEasyLogHandler(ih IHandler) IEasyLogHandler {
 type handlerWrapper struct {
 	Filters
 	handler IHandler
-	level   Level
+	level   level
 }
 
-func (h *handlerWrapper) SetLevel(level Level) {
+func (h *handlerWrapper) SetLevel(level level) {
 	h.level = level
 }
 
-func (h *handlerWrapper) GetLevel() Level {
+func (h *handlerWrapper) GetLevel() level {
 	return h.level
 }
 
 func (h *handlerWrapper) Handle(record *Event) {
-	if record.Level < h.level {
+	if record.level < h.level {
 		return
 	}
 
@@ -162,3 +159,4 @@ func (h *Handlers) Close() {
 		}
 	}
 }
+*/

@@ -6,120 +6,146 @@ import (
 	"time"
 )
 
-// Event not concurrency-safe
 type Event struct {
-	Logger *logger // which Logger Event belongs to
+	logger *logger
 
-	Time      time.Time
-	Level     Level
-	Message   string
-	Tags      map[string]interface{}
-	Kvs       map[string]interface{}
-	ExtraData interface{}
+	time  time.Time
+	level Level
+	msg   string
+	tags  *sync.Map
+	kvs   *sync.Map
+	extra interface{}
 
-	// runtime stack
-	PC   uintptr
-	File string
-	Line int
-	OK   bool
+	pc   uintptr
+	file string
+	line int
+	ok   bool
 }
 
-var recordPool = &sync.Pool{
+var eventPool = &sync.Pool{
 	New: func() interface{} {
 		return &Event{}
 	},
 }
 
 func newEvent() *Event {
-	r := recordPool.Get().(*Event)
+	r := eventPool.Get().(*Event)
 
-	r.Logger = nil
-	r.Level = INFO
+	r.logger = nil
 
-	r.Time = time.Time{}
-	r.Level = INFO
-	r.Message = ""
-	r.Tags = nil
-	r.Kvs = nil
-	r.ExtraData = nil
+	r.time = time.Time{}
+	r.level = INFO
+	r.msg = ""
+	r.tags = new(sync.Map)
+	r.kvs = new(sync.Map)
+	r.extra = nil
 
-	r.PC = 0
-	r.File = ""
-	r.Line = 0
-	r.OK = false
+	r.pc = 0
+	r.file = ""
+	r.line = 0
+	r.ok = false
 
 	return r
 }
 
 func putEvent(r *Event) {
-	if r.Level >= FATAL {
-		panic(r.Message)
+	if r.level >= FATAL {
+		panic(r.msg)
 	}
 
-	recordPool.Put(r)
+	eventPool.Put(r)
 }
 
-func (r *Event) Tag(tags map[string]interface{}) *Event {
-	if r == nil {
-		return r
+func (e *Event) Tag(k, v interface{}) *Event {
+	if e == nil {
+		return e
 	}
 
-	if r.Tags == nil {
-		r.Tags = make(map[string]interface{})
-	}
+	e.tags.Store(k, v)
 
-	for k, v := range tags {
-		r.Tags[k] = v
-	}
-	return r
+	return e
 }
 
-func (r *Event) Fields(kvs map[string]interface{}) *Event {
-	if r == nil {
-		return r
+func (e *Event) Kv(k, v interface{}) *Event {
+	if e == nil {
+		return e
 	}
 
-	if r.Kvs == nil {
-		r.Kvs = make(map[string]interface{})
-	}
+	e.kvs.Store(k, v)
 
-	for k, v := range kvs {
-		r.Kvs[k] = v
-	}
-	return r
+	return e
 }
 
-func (r *Event) Extra(extra interface{}) *Event {
-	if r == nil {
-		return r
+func (e *Event) Extra(extra interface{}) *Event {
+	if e == nil {
+		return e
 	}
 
-	r.ExtraData = extra
-	return r
+	e.extra = extra
+	return e
 }
 
-func (r *Event) Log() {
-	if r == nil {
+func (e *Event) Log() {
+	if e == nil {
 		return
 	}
 
-	r.Time = time.Now()
+	e.time = time.Now()
 
-	r.Logger.handleEvent(r)
+	e.logger.handleEvent(e)
 }
 
-func (r *Event) Logf(msg string, args ...interface{}) {
-	if r == nil {
+func (e *Event) Logf(msg string, args ...interface{}) {
+	if e == nil {
 		return
 	}
 
-	r.Time = time.Now()
+	e.time = time.Now()
+	e.msg = fmt.Sprintf(msg, args...)
 
-	if len(args) > 0 {
-		r.Message = fmt.Sprintf(msg, args...)
-	} else {
-		r.Message = msg
-	}
+	e.logger.handleEvent(e)
+}
 
-	r.Logger.handleEvent(r)
+func (e *Event) GetLogger() *logger {
+	return e.logger
+}
+
+func (e *Event) GetTime() time.Time {
+	return e.time
+}
+
+func (e *Event) GetLevel() Level {
+	return e.level
+}
+
+func (e *Event) GetMsg() string {
+	return e.msg
+}
+
+func (e *Event) GetTags() *sync.Map {
+	return e.tags
+}
+
+func (e *Event) GetKvs() *sync.Map {
+	return e.kvs
+}
+
+func (e *Event) GetExtra() interface{} {
+	return e.extra
+}
+
+func (e *Event) GetPC() uintptr {
+	return e.pc
+}
+
+func (e *Event) GetFile() string {
+	return e.file
+}
+
+func (e *Event) GetLine() int {
+	return e.line
+}
+
+func (e *Event) GetOK() bool {
+	return e.ok
 }

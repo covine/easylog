@@ -14,17 +14,21 @@ func TestGetRootLogger(t *testing.T) {
 	r := GetRootLogger()
 
 	assert.NotNil(t, r.manager)
-	assert.Equal(t, "root", r.name)
+	assert.Equal(t, "", r.Name())
 	assert.Nil(t, r.parent)
 	assert.False(t, r.propagate)
 	assert.False(t, r.placeholder)
 	assert.NotNil(t, r.tags)
 	assert.NotNil(t, r.kvs)
-	assert.NotNil(t, r.stack)
+	assert.False(t, r.debugFrame)
+	assert.False(t, r.infoFrame)
+	assert.False(t, r.warnFrame)
+	assert.False(t, r.errorFrame)
+	assert.False(t, r.fatalFrame)
 	assert.Equal(t, INFO, r.level)
 	assert.NotNil(t, r.children)
-	assert.NotNil(t, r.filters)
-	assert.NotNil(t, r.handlers)
+	assert.Nil(t, r.filters)
+	assert.Nil(t, r.handlers)
 }
 
 func TestSetGetLevel(t *testing.T) {
@@ -35,19 +39,33 @@ func TestSetGetLevel(t *testing.T) {
 
 func TestEnableDisableFrame(t *testing.T) {
 	EnableFrame(DEBUG)
+	EnableFrame(INFO)
+	EnableFrame(WARN)
+	EnableFrame(ERROR)
 	EnableFrame(FATAL)
+	EnableFrame(-100)
+	EnableFrame(100)
 	assert.True(t, root.needFrame(DEBUG))
+	assert.True(t, root.needFrame(INFO))
+	assert.True(t, root.needFrame(WARN))
+	assert.True(t, root.needFrame(ERROR))
 	assert.True(t, root.needFrame(FATAL))
-	assert.False(t, root.needFrame(INFO))
-	assert.False(t, root.needFrame(WARN))
-	assert.False(t, root.needFrame(ERROR))
+	assert.False(t, root.needFrame(-100))
+	assert.False(t, root.needFrame(100))
 	DisableFrame(DEBUG)
+	DisableFrame(INFO)
+	DisableFrame(WARN)
+	DisableFrame(ERROR)
 	DisableFrame(FATAL)
+	DisableFrame(-100)
+	DisableFrame(100)
 	assert.False(t, root.needFrame(DEBUG))
-	assert.False(t, root.needFrame(FATAL))
 	assert.False(t, root.needFrame(INFO))
 	assert.False(t, root.needFrame(WARN))
 	assert.False(t, root.needFrame(ERROR))
+	assert.False(t, root.needFrame(FATAL))
+	assert.False(t, root.needFrame(-100))
+	assert.False(t, root.needFrame(100))
 
 	Flush()
 	Close()
@@ -64,20 +82,20 @@ func TestAddRemoveFilter(t *testing.T) {
 	AddFilter(m2)
 	AddFilter(m2)
 
-	f := root.filters.Front()
-	assert.Equal(t, m1, f.Value.(IFilter))
-	assert.Equal(t, 2, root.filters.Len())
-	f = f.Next()
-	assert.Equal(t, m2, f.Value.(IFilter))
-	assert.Equal(t, 2, root.filters.Len())
+	f := (*(root.filters))[0]
+	assert.Equal(t, m1, f.(IFilter))
+	assert.Equal(t, 2, len(*(root.filters)))
+	f = (*(root.filters))[1]
+	assert.Equal(t, m2, f.(IFilter))
+	assert.Equal(t, 2, len(*(root.filters)))
 
 	RemoveFilter(m1)
-	f = root.filters.Front()
-	assert.Equal(t, m2, f.Value.(IFilter))
-	assert.Equal(t, 1, root.filters.Len())
+	f = (*(root.filters))[0]
+	assert.Equal(t, m2, f.(IFilter))
+	assert.Equal(t, 1, len(*(root.filters)))
 
 	RemoveFilter(m2)
-	assert.Equal(t, 0, root.filters.Len())
+	assert.Equal(t, 0, len(*(root.filters)))
 
 	Flush()
 	Close()
@@ -94,27 +112,27 @@ func TestAddRemoveHandler(t *testing.T) {
 	AddHandler(m2)
 	AddHandler(m2)
 
-	h := root.handlers.Front()
-	assert.Equal(t, m1, h.Value.(IHandler))
-	assert.Equal(t, 2, root.handlers.Len())
-	h = h.Next()
-	assert.Equal(t, m2, h.Value.(IHandler))
-	assert.Equal(t, 2, root.handlers.Len())
+	h := (*(root.handlers))[0]
+	assert.Equal(t, m1, h.(IHandler))
+	assert.Equal(t, 2, len(*(root.handlers)))
+	h = (*(root.handlers))[1]
+	assert.Equal(t, m2, h.(IHandler))
+	assert.Equal(t, 2, len(*(root.handlers)))
 
 	RemoveHandler(m1)
-	h = root.handlers.Front()
-	assert.Equal(t, m2, h.Value.(IHandler))
-	assert.Equal(t, 1, root.handlers.Len())
+	h = (*(root.handlers))[0]
+	assert.Equal(t, m2, h.(IHandler))
+	assert.Equal(t, 1, len(*(root.handlers)))
 
 	RemoveHandler(m2)
-	assert.Equal(t, 0, root.handlers.Len())
+	assert.Equal(t, 0, len(*(root.handlers)))
 
 	Flush()
 	Close()
 }
 
 func TestDebug(t *testing.T) {
-	t.Run("emit Debug log with INFO Level", func(t *testing.T) {
+	t.Run("emit Debug log with INFO level", func(t *testing.T) {
 		SetLevel(INFO)
 
 		m := &MockHandler{}
@@ -137,15 +155,15 @@ func TestDebug(t *testing.T) {
 		m.AssertNumberOfCalls(t, "Close", 1)
 	})
 
-	t.Run("emit Debug log with DEBUG Level", func(t *testing.T) {
+	t.Run("emit Debug log with DEBUG level", func(t *testing.T) {
 		SetLevel(DEBUG)
 
 		m := &MockHandler{}
 
 		m.On("Handle", mock.MatchedBy(func(e *Event) bool {
-			return e.Logger == root && e.Level == DEBUG &&
-				e.Message == "" && len(e.Tags) == 0 && len(e.Kvs) == 0 &&
-				e.ExtraData == nil && e.PC == 0 && e.File == "" && e.Line == 0 && e.OK == false
+			return e.logger == root && e.level == DEBUG &&
+				e.msg == "" &&
+				e.extra == nil && e.pc == 0 && e.file == "" && e.line == 0 && e.ok == false
 		})).Return()
 		m.On("Flush").Return()
 		m.On("Close").Return()
@@ -166,15 +184,15 @@ func TestDebug(t *testing.T) {
 		m.AssertNumberOfCalls(t, "Close", 1)
 	})
 
-	t.Run("emit Debug log with WARN Level", func(t *testing.T) {
+	t.Run("emit Debug log with WARN level", func(t *testing.T) {
 		SetLevel(WARN)
 
 		m := &MockHandler{}
 
 		m.On("Handle", mock.MatchedBy(func(e *Event) bool {
-			return e.Logger == root && e.Level == DEBUG &&
-				e.Message == "" && len(e.Tags) == 0 && len(e.Kvs) == 0 &&
-				e.ExtraData == nil && e.PC == 0 && e.File == "" && e.Line == 0 && e.OK == false
+			return e.logger == root && e.level == DEBUG &&
+				e.msg == "" &&
+				e.extra == nil && e.pc == 0 && e.file == "" && e.line == 0 && e.ok == false
 		})).Return()
 		m.On("Flush").Return()
 		m.On("Close").Return()
@@ -195,15 +213,15 @@ func TestDebug(t *testing.T) {
 		m.AssertNumberOfCalls(t, "Close", 1)
 	})
 
-	t.Run("emit Debug log with invalid low Level", func(t *testing.T) {
+	t.Run("emit Debug log with invalid low level", func(t *testing.T) {
 		SetLevel(-2)
 
 		m := &MockHandler{}
 
 		m.On("Handle", mock.MatchedBy(func(e *Event) bool {
-			return e.Logger == root && e.Level == DEBUG &&
-				e.Message == "" && len(e.Tags) == 0 && len(e.Kvs) == 0 &&
-				e.ExtraData == nil && e.PC == 0 && e.File == "" && e.Line == 0 && e.OK == false
+			return e.logger == root && e.level == DEBUG &&
+				e.msg == "" &&
+				e.extra == nil && e.pc == 0 && e.file == "" && e.line == 0 && e.ok == false
 		})).Return()
 		m.On("Flush").Return()
 		m.On("Close").Return()
@@ -224,15 +242,15 @@ func TestDebug(t *testing.T) {
 		m.AssertNumberOfCalls(t, "Close", 1)
 	})
 
-	t.Run("emit Debug log with invalid high Level", func(t *testing.T) {
+	t.Run("emit Debug log with invalid high level", func(t *testing.T) {
 		SetLevel(10)
 
 		m := &MockHandler{}
 
 		m.On("Handle", mock.MatchedBy(func(e *Event) bool {
-			return e.Logger == root && e.Level == DEBUG &&
-				e.Message == "" && len(e.Tags) == 0 && len(e.Kvs) == 0 &&
-				e.ExtraData == nil && e.PC == 0 && e.File == "" && e.Line == 0 && e.OK == false
+			return e.logger == root && e.level == DEBUG &&
+				e.msg == "" &&
+				e.extra == nil && e.pc == 0 && e.file == "" && e.line == 0 && e.ok == false
 		})).Return()
 		m.On("Flush").Return()
 		m.On("Close").Return()
@@ -255,14 +273,14 @@ func TestDebug(t *testing.T) {
 }
 
 func TestInfo(t *testing.T) {
-	t.Run("emit Info log with INFO Level", func(t *testing.T) {
+	t.Run("emit Info log with INFO level", func(t *testing.T) {
 		SetLevel(INFO)
 
 		m := &MockHandler{}
 		m.On("Handle", mock.MatchedBy(func(e *Event) bool {
-			return e.Logger == root && e.Level == INFO &&
-				e.Message == "" && len(e.Tags) == 0 && len(e.Kvs) == 0 &&
-				e.ExtraData == nil && e.PC == 0 && e.File == "" && e.Line == 0 && e.OK == false
+			return e.logger == root && e.level == INFO &&
+				e.msg == "" &&
+				e.extra == nil && e.pc == 0 && e.file == "" && e.line == 0 && e.ok == false
 		})).Return()
 		m.On("Flush").Return()
 		m.On("Close").Return()
@@ -283,14 +301,14 @@ func TestInfo(t *testing.T) {
 		m.AssertNumberOfCalls(t, "Close", 1)
 	})
 
-	t.Run("emit Info log with DEBUG Level", func(t *testing.T) {
+	t.Run("emit Info log with DEBUG level", func(t *testing.T) {
 		SetLevel(DEBUG)
 
 		m := &MockHandler{}
 		m.On("Handle", mock.MatchedBy(func(e *Event) bool {
-			return e.Logger == root && e.Level == INFO &&
-				e.Message == "" && len(e.Tags) == 0 && len(e.Kvs) == 0 &&
-				e.ExtraData == nil && e.PC == 0 && e.File == "" && e.Line == 0 && e.OK == false
+			return e.logger == root && e.level == INFO &&
+				e.msg == "" &&
+				e.extra == nil && e.pc == 0 && e.file == "" && e.line == 0 && e.ok == false
 		})).Return()
 		m.On("Flush").Return()
 		m.On("Close").Return()
@@ -311,15 +329,15 @@ func TestInfo(t *testing.T) {
 		m.AssertNumberOfCalls(t, "Close", 1)
 	})
 
-	t.Run("emit Info log with WARN Level", func(t *testing.T) {
+	t.Run("emit Info log with WARN level", func(t *testing.T) {
 		SetLevel(WARN)
 
 		m := &MockHandler{}
 
 		m.On("Handle", mock.MatchedBy(func(e *Event) bool {
-			return e.Logger == root && e.Level == INFO &&
-				e.Message == "" && len(e.Tags) == 0 && len(e.Kvs) == 0 &&
-				e.ExtraData == nil && e.PC == 0 && e.File == "" && e.Line == 0 && e.OK == false
+			return e.logger == root && e.level == INFO &&
+				e.msg == "" &&
+				e.extra == nil && e.pc == 0 && e.file == "" && e.line == 0 && e.ok == false
 		})).Return()
 		m.On("Flush").Return()
 		m.On("Close").Return()
@@ -340,15 +358,15 @@ func TestInfo(t *testing.T) {
 		m.AssertNumberOfCalls(t, "Close", 1)
 	})
 
-	t.Run("emit Info log with invalid low Level", func(t *testing.T) {
+	t.Run("emit Info log with invalid low level", func(t *testing.T) {
 		SetLevel(-2)
 
 		m := &MockHandler{}
 
 		m.On("Handle", mock.MatchedBy(func(e *Event) bool {
-			return e.Logger == root && e.Level == INFO &&
-				e.Message == "" && len(e.Tags) == 0 && len(e.Kvs) == 0 &&
-				e.ExtraData == nil && e.PC == 0 && e.File == "" && e.Line == 0 && e.OK == false
+			return e.logger == root && e.level == INFO &&
+				e.msg == "" &&
+				e.extra == nil && e.pc == 0 && e.file == "" && e.line == 0 && e.ok == false
 		})).Return()
 		m.On("Flush").Return()
 		m.On("Close").Return()
@@ -369,15 +387,15 @@ func TestInfo(t *testing.T) {
 		m.AssertNumberOfCalls(t, "Close", 1)
 	})
 
-	t.Run("emit Info log with invalid high Level", func(t *testing.T) {
+	t.Run("emit Info log with invalid high level", func(t *testing.T) {
 		SetLevel(10)
 
 		m := &MockHandler{}
 
 		m.On("Handle", mock.MatchedBy(func(e *Event) bool {
-			return e.Logger == root && e.Level == INFO &&
-				e.Message == "" && len(e.Tags) == 0 && len(e.Kvs) == 0 &&
-				e.ExtraData == nil && e.PC == 0 && e.File == "" && e.Line == 0 && e.OK == false
+			return e.logger == root && e.level == INFO &&
+				e.msg == "" &&
+				e.extra == nil && e.pc == 0 && e.file == "" && e.line == 0 && e.ok == false
 		})).Return()
 		m.On("Flush").Return()
 		m.On("Close").Return()
@@ -400,14 +418,14 @@ func TestInfo(t *testing.T) {
 }
 
 func TestWarn(t *testing.T) {
-	t.Run("emit Warn log with INFO Level", func(t *testing.T) {
+	t.Run("emit Warn log with INFO level", func(t *testing.T) {
 		SetLevel(INFO)
 
 		m := &MockHandler{}
 		m.On("Handle", mock.MatchedBy(func(e *Event) bool {
-			return e.Logger == root && e.Level == WARN &&
-				e.Message == "" && len(e.Tags) == 0 && len(e.Kvs) == 0 &&
-				e.ExtraData == nil && e.PC == 0 && e.File == "" && e.Line == 0 && e.OK == false
+			return e.logger == root && e.level == WARN &&
+				e.msg == "" &&
+				e.extra == nil && e.pc == 0 && e.file == "" && e.line == 0 && e.ok == false
 		})).Return()
 		m.On("Flush").Return()
 		m.On("Close").Return()
@@ -430,14 +448,14 @@ func TestWarn(t *testing.T) {
 }
 
 func TestError(t *testing.T) {
-	t.Run("emit Error log with INFO Level", func(t *testing.T) {
+	t.Run("emit Error log with INFO level", func(t *testing.T) {
 		SetLevel(INFO)
 
 		m := &MockHandler{}
 		m.On("Handle", mock.MatchedBy(func(e *Event) bool {
-			return e.Logger == root && e.Level == ERROR &&
-				e.Message == "" && len(e.Tags) == 0 && len(e.Kvs) == 0 &&
-				e.ExtraData == nil && e.PC == 0 && e.File == "" && e.Line == 0 && e.OK == false
+			return e.logger == root && e.level == ERROR &&
+				e.msg == "" &&
+				e.extra == nil && e.pc == 0 && e.file == "" && e.line == 0 && e.ok == false
 		})).Return()
 		m.On("Flush").Return()
 		m.On("Close").Return()
@@ -464,10 +482,10 @@ func TestError(t *testing.T) {
 
 		m := &MockHandler{}
 		m.On("Handle", mock.MatchedBy(func(e *Event) bool {
-			return e.Logger == root && e.Level == ERROR &&
-				e.Message == "" && len(e.Tags) == 0 && len(e.Kvs) == 0 &&
-				e.ExtraData == nil && e.PC > 0 && strings.Contains(e.File, "easylog_test.go") &&
-				e.Line >= 477 && e.Line <= 479 && e.OK == true
+			return e.logger == root && e.level == ERROR &&
+				e.msg == "" &&
+				e.extra == nil && e.pc > 0 && strings.Contains(e.file, "easylog_test.go") &&
+				e.line >= 495 && e.line <= 497 && e.ok == true
 		})).Return()
 		m.On("Flush").Return()
 		m.On("Close").Return()
@@ -490,19 +508,16 @@ func TestError(t *testing.T) {
 }
 
 func TestFatal(t *testing.T) {
-	assert.Panics(t, func() {
-		panic(1)
-	})
 	t.Run("emit Fatal log and enable frame", func(t *testing.T) {
 		SetLevel(INFO)
 		EnableFrame(FATAL)
 
 		m := &MockHandler{}
 		m.On("Handle", mock.MatchedBy(func(e *Event) bool {
-			return e.Logger == root && e.Level == FATAL &&
-				e.Message == "" && len(e.Tags) == 0 && len(e.Kvs) == 0 &&
-				e.ExtraData == nil && e.PC > 0 && strings.Contains(e.File, "easylog_test.go") &&
-				e.Line == 523 && e.OK == true
+			return e.logger == root && e.level == FATAL &&
+				e.msg == "" &&
+				e.extra == nil && e.pc > 0 && strings.Contains(e.file, "easylog_test.go") &&
+				e.line == 538 && e.ok == true
 		})).Return()
 		m.On("Flush").Return()
 		m.On("Close").Return()
@@ -535,39 +550,38 @@ func TestGetLogger(t *testing.T) {
 
 		r := GetRootLogger()
 		assert.NotNil(t, r.manager)
-		assert.Equal(t, "root", r.name)
+		assert.Equal(t, "", r.name)
 		assert.Nil(t, r.parent)
 		assert.False(t, r.propagate)
 		assert.False(t, r.placeholder)
 		assert.NotNil(t, r.tags)
 		assert.NotNil(t, r.kvs)
-		assert.NotNil(t, r.stack)
 		assert.Equal(t, DEBUG, r.level)
 		assert.NotNil(t, r.children)
-		assert.NotNil(t, r.filters)
+		assert.True(t, r.filters == nil || 0 == len(*(r.filters)))
 		assert.NotNil(t, r.handlers)
 		assert.Equal(t, 0, len(r.children))
 
 		empty := GetLogger("")
-		assert.True(t, root == empty.parent)
+		assert.True(t, r == empty)
 		assert.Equal(t, false, empty.propagate)
 		assert.Equal(t, 0, len(empty.children))
 		assert.Equal(t, false, empty.placeholder)
-		assert.Equal(t, 0, len(empty.children))
+		assert.Equal(t, 0, len(r.children))
 
 		emptyEmpty := GetLogger(".")
-		assert.True(t, empty == emptyEmpty.parent)
+		assert.True(t, r == emptyEmpty.parent)
 		assert.Equal(t, false, emptyEmpty.propagate)
 		assert.Equal(t, 0, len(emptyEmpty.children))
 		assert.Equal(t, false, emptyEmpty.placeholder)
-		assert.Equal(t, 0, len(empty.children))
+		assert.Equal(t, 0, len(r.children))
 
 		emptyA := GetLogger(".a")
-		assert.True(t, empty == emptyA.parent)
+		assert.True(t, root == emptyA.parent)
 		assert.Equal(t, false, emptyA.propagate)
 		assert.Equal(t, 0, len(emptyA.children))
 		assert.Equal(t, false, emptyA.placeholder)
-		assert.Equal(t, 0, len(empty.children))
+		assert.Equal(t, 0, len(r.children))
 
 		emptyEmptyA := GetLogger("..a")
 		assert.True(t, emptyEmpty == emptyEmptyA.parent)
@@ -575,7 +589,7 @@ func TestGetLogger(t *testing.T) {
 		assert.Equal(t, 0, len(emptyEmptyA.children))
 		assert.Equal(t, false, emptyEmptyA.placeholder)
 		assert.Equal(t, 0, len(emptyEmpty.children))
-		assert.Equal(t, 0, len(empty.children))
+		assert.Equal(t, 0, len(r.children))
 
 		emptyEmptyAEmptyEmpty := GetLogger("..a..")
 		assert.True(t, emptyEmptyA == emptyEmptyAEmptyEmpty.parent)
@@ -585,7 +599,7 @@ func TestGetLogger(t *testing.T) {
 		assert.Equal(t, 0, len(GetLogger("..a.").children))
 		assert.Equal(t, 0, len(emptyEmptyA.children))
 		assert.Equal(t, 0, len(emptyEmpty.children))
-		assert.Equal(t, 0, len(empty.children))
+		assert.Equal(t, 0, len(r.children))
 
 		a5 := GetLogger("a.b.c.d.e")
 		assert.True(t, r == a5.parent)

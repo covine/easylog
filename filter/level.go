@@ -9,5 +9,5 @@ type LevelEqualFilter struct {
 }
 
 func (l *LevelEqualFilter) Filter(record *easylog.Event) bool {
-	return record.Level == l.Level
+	return record.GetLevel() == l.Level
 }

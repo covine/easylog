@@ -1,14 +1,11 @@
 package easylog
 
-import (
-	"container/list"
-)
-
 // IFilter mockery --name=IFilter --inpackage --case=underscore --filename=filter_mock.go --structname MockFilter
 type IFilter interface {
 	Filter(*Event) bool
 }
 
+/*
 type IFilters interface {
 	AddFilter(IFilter)
 	RemoveFilter(IFilter)
@@ -85,3 +82,4 @@ func (f *Filters) Filter(record *Event) bool {
 	}
 	return true
 }
+*/

@@ -17,7 +17,7 @@ func (f *FileHandler) Handle(record *easylog.Event) {
 	if f.format != nil {
 		str = f.format(record)
 	} else {
-		str = record.Message
+		str = record.msg
 	}
 
 	_, _ = f.f.Write([]byte(str + "\n"))

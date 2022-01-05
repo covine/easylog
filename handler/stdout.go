@@ -15,7 +15,7 @@ func (s *StdoutHandler) Handle(record *easylog.Event) {
 	if s.format != nil {
 		str = s.format(record)
 	} else {
-		str = record.Message
+		str = record.msg
 	}
 
 	_, _ = os.Stdout.Write([]byte(str + "\n"))

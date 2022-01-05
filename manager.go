@@ -78,13 +78,8 @@ func (m *manager) fixUpParents(l *logger) {
 }
 
 func (m *manager) fixUpChildren(placeholder *logger, l *logger) {
-	name := l.name
-	nameLen := len(name)
 	for c := range placeholder.children {
-		if c.parent == m.root {
-			l.parent = m.root
-			c.parent = l
-		} else if len(c.parent.name) < nameLen {
+		if !strings.HasPrefix(c.parent.name, l.name) {
 			l.parent = c.parent
 			c.parent = l
 		}

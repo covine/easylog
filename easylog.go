@@ -8,9 +8,7 @@ func init() {
 		loggerMap: make(map[string]*logger),
 	}
 
-	root = newLogger()
-	root.name = "root"
-	root.manager = m
+	root = m.getLogger("")
 
 	m.root = root
 }
@@ -19,8 +17,9 @@ func GetLogger(name string) *logger {
 	return m.getLogger(name)
 }
 
+// GetRootLogger is equivalent to GetLogger("")
 func GetRootLogger() *logger {
-	return m.root
+	return m.getLogger("")
 }
 
 func SetLevel(level Level) {
