@@ -27,8 +27,8 @@ func TestGetRootLogger(t *testing.T) {
 	assert.False(t, r.fatalFrame)
 	assert.Equal(t, INFO, r.level)
 	assert.NotNil(t, r.children)
-	assert.Nil(t, r.filters)
-	assert.Nil(t, r.handlers)
+	assert.Equal(t, 0, len(*(r.filters)))
+	assert.Equal(t, 0, len(*(r.handlers)))
 }
 
 func TestSetGetLevel(t *testing.T) {

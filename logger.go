@@ -31,10 +31,15 @@ type logger struct {
 }
 
 func newLogger() *logger {
+	filters := make([]IFilter, 0)
+	handlers := make([]IHandler, 0)
+
 	return &logger{
 		children: make(map[*logger]struct{}),
 		tags:     new(sync.Map),
 		kvs:      new(sync.Map),
+		filters:  &filters,
+		handlers: &handlers,
 	}
 }
 
@@ -89,113 +94,103 @@ func (l *logger) DisableFrame(level Level) {
 }
 
 func (l *logger) AddFilter(f IFilter) {
+	if f == nil {
+		return
+	}
+
 	l.fMu.Lock()
 	defer l.fMu.Unlock()
 
-	if l.filters == nil {
-		fs := make([]IFilter, 0)
-		fs = append(fs, f)
-		l.filters = &fs
-	} else {
-		for _, ele := range *(l.filters) {
-			filter, ok := ele.(IFilter)
-			if ok && filter == f {
-				return
-			}
+	for _, filter := range *(l.filters) {
+		if filter == f {
+			return
 		}
-
-		fs := make([]IFilter, len(*(l.filters)))
-		copy(fs, *(l.filters))
-		fs = append(fs, f)
-
-		l.filters = &fs
 	}
+
+	fs := make([]IFilter, len(*(l.filters)))
+	copy(fs, *(l.filters))
+	fs = append(fs, f)
+
+	l.filters = &fs
 }
 
 func (l *logger) RemoveFilter(f IFilter) {
+	if f == nil {
+		return
+	}
+
 	l.fMu.Lock()
 	defer l.fMu.Unlock()
 
-	if l.filters == nil {
-		return
-	} else {
-		find := false
-		for _, ele := range *(l.filters) {
-			filter, ok := ele.(IFilter)
-			if ok && filter == f {
-				find = true
-			}
+	find := false
+	for _, filter := range *(l.filters) {
+		if filter == f {
+			find = true
 		}
-		if !find {
-			return
-		}
-
-		fs := make([]IFilter, 0, len(*l.filters))
-		for _, ele := range *(l.filters) {
-			filter, ok := ele.(IFilter)
-			if ok && filter == f {
-				continue
-			}
-			fs = append(fs, ele)
-		}
-
-		l.filters = &fs
 	}
+	if !find {
+		return
+	}
+
+	fs := make([]IFilter, 0, len(*l.filters))
+	for _, filter := range *(l.filters) {
+		if filter == f {
+			continue
+		}
+		fs = append(fs, filter)
+	}
+
+	l.filters = &fs
 }
 
 func (l *logger) AddHandler(h IHandler) {
+	if h == nil {
+		return
+	}
+
 	l.hMu.Lock()
 	defer l.hMu.Unlock()
 
-	if l.handlers == nil {
-		hs := make([]IHandler, 0)
-		hs = append(hs, h)
-		l.handlers = &hs
-	} else {
-		for _, ele := range *(l.handlers) {
-			handler, ok := ele.(IHandler)
-			if ok && handler == h {
-				return
-			}
+	for _, handler := range *(l.handlers) {
+		if handler == h {
+			return
 		}
-
-		hs := make([]IHandler, len(*(l.handlers)))
-		copy(hs, *(l.handlers))
-		hs = append(hs, h)
-
-		l.handlers = &hs
 	}
+
+	hs := make([]IHandler, len(*(l.handlers)))
+	copy(hs, *(l.handlers))
+	hs = append(hs, h)
+
+	l.handlers = &hs
 }
 
 func (l *logger) RemoveHandler(h IHandler) {
+	if h == nil {
+		return
+	}
+
 	l.hMu.Lock()
 	defer l.hMu.Unlock()
 
-	if l.handlers == nil {
-		return
-	} else {
-		find := false
-		for _, ele := range *(l.handlers) {
-			handler, ok := ele.(IHandler)
-			if ok && handler == h {
-				find = true
-			}
+	find := false
+	for _, handler := range *(l.handlers) {
+		if handler == h {
+			find = true
 		}
-		if !find {
-			return
-		}
-
-		hs := make([]IHandler, 0, len(*l.handlers))
-		for _, ele := range *(l.handlers) {
-			handler, ok := ele.(IHandler)
-			if ok && handler == h {
-				continue
-			}
-			hs = append(hs, ele)
-		}
-
-		l.handlers = &hs
 	}
+	if !find {
+		return
+	}
+
+	hs := make([]IHandler, 0, len(*l.handlers))
+	for _, handler := range *(l.handlers) {
+		if handler == h {
+			continue
+		}
+		hs = append(hs, handler)
+	}
+
+	l.handlers = &hs
 }
 
 func (l *logger) SetTag(k, v interface{}) {
@@ -235,35 +230,15 @@ func (l *logger) Fatal() *Event {
 }
 
 func (l *logger) Flush() {
-	if l.handlers == nil {
-		return
-	}
-
-	for _, ele := range *(l.handlers) {
-		handler, ok := ele.(IHandler)
-		if ok && handler != nil {
-			handler.Flush()
-		}
+	for _, handler := range *(l.handlers) {
+		handler.Flush()
 	}
 }
 
 func (l *logger) Close() {
-	if l.handlers == nil {
-		return
-	}
-
-	for _, ele := range *(l.handlers) {
-		handler, ok := ele.(IHandler)
-		if ok && handler != nil {
-			handler.Flush()
-		}
-	}
-
-	for _, ele := range *(l.handlers) {
-		handler, ok := ele.(IHandler)
-		if ok && handler != nil {
-			handler.Close()
-		}
+	for _, handler := range *(l.handlers) {
+		handler.Flush()
+		handler.Close()
 	}
 }
 
@@ -300,16 +275,9 @@ func (l *logger) log(level Level, skip int) *Event {
 }
 
 func (l *logger) filter(record *Event) bool {
-	if l.filters == nil {
-		return true
-	}
-
-	for _, ele := range *(l.filters) {
-		filter, ok := ele.(IFilter)
-		if ok && filter != nil {
-			if filter.Filter(record) == false {
-				return false
-			}
+	for _, filter := range *(l.filters) {
+		if filter.Filter(record) == false {
+			return false
 		}
 	}
 
@@ -317,15 +285,8 @@ func (l *logger) filter(record *Event) bool {
 }
 
 func (l *logger) handle(event *Event) {
-	if l.handlers == nil {
-		return
-	}
-
-	for _, ele := range *(l.handlers) {
-		handler, ok := ele.(IHandler)
-		if ok && handler != nil {
-			handler.Handle(event)
-		}
+	for _, handler := range *(l.handlers) {
+		handler.Handle(event)
 	}
 }
 

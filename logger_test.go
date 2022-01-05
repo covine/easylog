@@ -56,8 +56,10 @@ func TestFilterHandlerParallel(t *testing.T) {
 			default:
 				l.AddFilter(m1)
 				l.AddFilter(m2)
+				l.AddFilter(nil)
 				l.AddHandler(h1)
 				l.AddHandler(h2)
+				l.AddHandler(nil)
 			}
 		}
 	}()
@@ -73,8 +75,10 @@ func TestFilterHandlerParallel(t *testing.T) {
 			default:
 				l.RemoveFilter(m1)
 				l.RemoveFilter(m2)
+				l.RemoveFilter(nil)
 				l.RemoveHandler(h1)
 				l.RemoveHandler(h2)
+				l.RemoveHandler(nil)
 			}
 		}
 	}()
@@ -127,6 +131,7 @@ func TestLogger(t *testing.T) {
 	assert.True(t, abc == abcd.parent)
 	assert.True(t, nil == root.parent)
 
+	assert.Equal(t, "a", a.Name())
 	assert.Equal(t, false, a.GetPropagate())
 	a.SetPropagate(true)
 	assert.Equal(t, true, a.GetPropagate())
@@ -144,7 +149,48 @@ func TestLogger(t *testing.T) {
 	assert.Equal(t, false, root.propagate)
 
 	t.Run("event -> <a.b.c.d> -> <a.b.c>", func(t *testing.T) {
+		abcd.AddFilter()
+		abcd.AddHandler()
 
+		abc.AddFilter()
+		abc.AddHandler()
+
+		ab.AddFilter()
+		ab.AddHandler()
+
+		a.AddFilter()
+		a.AddHandler()
+
+		root.AddFilter()
+		root.AddHandler()
+
+		//
+
+		//
+		root.RemoveFilter()
+		root.RemoveHandler()
+		root.Flush()
+		root.Close()
+
+		a.RemoveFilter()
+		a.RemoveHandler()
+		a.Flush()
+		a.Close()
+
+		ab.RemoveFilter()
+		ab.RemoveHandler()
+		ab.Flush()
+		ab.Close()
+
+		abc.RemoveFilter()
+		abc.RemoveHandler()
+		abc.Flush()
+		abc.Close()
+
+		abcd.RemoveFilter()
+		abcd.RemoveHandler()
+		abcd.Flush()
+		abcd.Close()
 	})
 
 	t.Run("event -> <a.b.c>", func(t *testing.T) {
