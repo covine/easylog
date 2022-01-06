@@ -149,46 +149,73 @@ func TestLogger(t *testing.T) {
 	assert.Equal(t, false, root.propagate)
 
 	t.Run("event -> <a.b.c.d> -> <a.b.c>", func(t *testing.T) {
-		abcd.AddFilter()
-		abcd.AddHandler()
+		f1 := &LevelEqualFilter{Level: ERROR}
+		m1 := &MockHandler{}
+		m1.On("Handle", mock.MatchedBy(func(e *Event) bool {
+			return e.GetLogger() == abcd && e.GetLevel() == ERROR &&
+				e.GetPC() == 0 && e.GetFile() == "" && e.GetLine() == 0 &&
+				e.GetOK() == false && e.GetTime().Second() > 0
+		})).Once().Return()
+		m1.On("Flush").Return()
+		m1.On("Close").Return()
+		abcd.AddFilter(f1)
+		abcd.AddHandler(m1)
 
-		abc.AddFilter()
-		abc.AddHandler()
+		f2 := &LevelEqualFilter{Level: ERROR}
+		m2 := &MockHandler{}
+		m2.On("Handle", mock.MatchedBy(func(e *Event) bool {
+			return e.GetLogger() == abcd && e.GetLevel() == ERROR &&
+				e.GetPC() == 0 && e.GetFile() == "" && e.GetLine() == 0 &&
+				e.GetOK() == false && e.GetTime().Second() > 0
+		})).Once().Return()
+		m2.On("Flush").Return()
+		m2.On("Close").Return()
+		abc.AddFilter(f2)
+		abc.AddHandler(m2)
 
-		ab.AddFilter()
-		ab.AddHandler()
+		f3 := &MockFilter{}
+		m3 := &MockHandler{}
+		ab.AddFilter(f3)
+		ab.AddHandler(m3)
 
-		a.AddFilter()
-		a.AddHandler()
+		f4 := &MockFilter{}
+		m4 := &MockHandler{}
+		a.AddFilter(f4)
+		a.AddHandler(m4)
 
-		root.AddFilter()
-		root.AddHandler()
+		f5 := &MockFilter{}
+		m5 := &MockHandler{}
+		root.AddFilter(f5)
+		root.AddHandler(m5)
+		//
+		abcd.Debug().Log()
+		abcd.Info().Log()
+		abcd.Error().Log()
+		abcd.Warn().Log()
 
 		//
-
-		//
-		root.RemoveFilter()
-		root.RemoveHandler()
+		root.RemoveFilter(f5)
+		root.RemoveHandler(m5)
 		root.Flush()
 		root.Close()
 
-		a.RemoveFilter()
-		a.RemoveHandler()
+		a.RemoveFilter(f4)
+		a.RemoveHandler(m4)
 		a.Flush()
 		a.Close()
 
-		ab.RemoveFilter()
-		ab.RemoveHandler()
+		ab.RemoveFilter(f3)
+		ab.RemoveHandler(m3)
 		ab.Flush()
 		ab.Close()
 
-		abc.RemoveFilter()
-		abc.RemoveHandler()
+		abc.RemoveFilter(f2)
+		abc.RemoveHandler(m2)
 		abc.Flush()
 		abc.Close()
 
-		abcd.RemoveFilter()
-		abcd.RemoveHandler()
+		abcd.RemoveFilter(f1)
+		abcd.RemoveHandler(m1)
 		abcd.Flush()
 		abcd.Close()
 	})

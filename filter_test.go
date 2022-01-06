@@ -1,16 +1,13 @@
-package easylog_test
+package easylog
 
 import (
 	"testing"
-
-	"github.com/covine/easylog"
-	"github.com/covine/easylog/filter"
 )
 
 func TestFilter(t *testing.T) {
 	t.Run("filter", func(t *testing.T) {
-		l := easylog.GetLogger("filter")
-		f := &filter.LevelEqualFilter{Level: easylog.DEBUG}
+		l := GetLogger("filter")
+		f := &LevelEqualFilter{Level: DEBUG}
 		l.RemoveFilter(f)
 		l.AddFilter(nil)
 		l.AddFilter(f)

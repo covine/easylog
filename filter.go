@@ -5,6 +5,14 @@ type IFilter interface {
 	Filter(*Event) bool
 }
 
+type LevelEqualFilter struct {
+	Level Level
+}
+
+func (l *LevelEqualFilter) Filter(event *Event) bool {
+	return event.GetLevel() == l.Level
+}
+
 /*
 type IFilters interface {
 	AddFilter(IFilter)
