@@ -2,7 +2,6 @@ package easylog
 
 import (
 	"fmt"
-	"os"
 	"runtime"
 	"sync"
 	"time"
@@ -117,10 +116,10 @@ func (e *Event) log(msg string, skip int) {
 	if e.Logger.needCaller(e.Level) {
 		frame, ok := e.getCallerFrame(skip)
 		if !ok {
-			_, _ = fmt.Fprintf(os.Stderr, "[%v] [%v] [%v]:get caller failed\n",
+			_, _ = fmt.Fprintf(e.Logger.errWriter, "[%v] [%v] [%v]:get caller failed\n",
 				e.Logger.name, e.Level, e.Time,
 			)
-			_ = os.Stderr.Sync()
+			_ = e.Logger.errWriter.Flush()
 		}
 
 		e.OK = ok

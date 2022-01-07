@@ -1,6 +1,7 @@
 package easylog
 
 import (
+	"os"
 	"sync"
 )
 
@@ -28,7 +29,7 @@ type logger struct {
 	handlers *[]IHandler
 	hMu      sync.Mutex
 
-	errWriter SyncWriter
+	errWriter BufWriter
 }
 
 func newLogger() *logger {
@@ -36,11 +37,12 @@ func newLogger() *logger {
 	handlers := make([]IHandler, 0)
 
 	return &logger{
-		children: make(map[*logger]struct{}),
-		tags:     new(sync.Map),
-		kvs:      new(sync.Map),
-		filters:  &filters,
-		handlers: &handlers,
+		children:  make(map[*logger]struct{}),
+		tags:      new(sync.Map),
+		kvs:       new(sync.Map),
+		filters:   &filters,
+		handlers:  &handlers,
+		errWriter: NewSerialBufWriter(os.Stderr, -1),
 	}
 }
 
@@ -192,6 +194,10 @@ func (l *logger) RemoveHandler(h IHandler) {
 	}
 
 	l.handlers = &hs
+}
+
+func (l *logger) SetErrWriter(w BufWriter) {
+	l.errWriter = w
 }
 
 func (l *logger) SetTag(k, v interface{}) {
