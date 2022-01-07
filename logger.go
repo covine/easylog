@@ -1,7 +1,6 @@
 package easylog
 
 import (
-	"runtime"
 	"sync"
 )
 
@@ -15,11 +14,11 @@ type logger struct {
 	propagate bool
 	level     Level
 
-	debugFrame bool
-	infoFrame  bool
-	warnFrame  bool
-	errorFrame bool
-	fatalFrame bool
+	debugCaller bool
+	infoCaller  bool
+	warnCaller  bool
+	errorCaller bool
+	fatalCaller bool
 
 	tags *sync.Map
 	kvs  *sync.Map
@@ -28,6 +27,8 @@ type logger struct {
 	fMu      sync.Mutex
 	handlers *[]IHandler
 	hMu      sync.Mutex
+
+	errWriter SyncWriter
 }
 
 func newLogger() *logger {
@@ -63,33 +64,33 @@ func (l *logger) GetLevel() Level {
 	return l.level
 }
 
-func (l *logger) EnableFrame(level Level) {
+func (l *logger) EnableCaller(level Level) {
 	switch level {
 	case DEBUG:
-		l.debugFrame = true
+		l.debugCaller = true
 	case INFO:
-		l.infoFrame = true
+		l.infoCaller = true
 	case WARN:
-		l.warnFrame = true
+		l.warnCaller = true
 	case ERROR:
-		l.errorFrame = true
+		l.errorCaller = true
 	case FATAL:
-		l.fatalFrame = true
+		l.fatalCaller = true
 	}
 }
 
-func (l *logger) DisableFrame(level Level) {
+func (l *logger) DisableCaller(level Level) {
 	switch level {
 	case DEBUG:
-		l.debugFrame = false
+		l.debugCaller = false
 	case INFO:
-		l.infoFrame = false
+		l.infoCaller = false
 	case WARN:
-		l.warnFrame = false
+		l.warnCaller = false
 	case ERROR:
-		l.errorFrame = false
+		l.errorCaller = false
 	case FATAL:
-		l.fatalFrame = false
+		l.fatalCaller = false
 	}
 }
 
@@ -210,23 +211,23 @@ func (l *logger) GetKvs() *sync.Map {
 }
 
 func (l *logger) Debug() *Event {
-	return l.log(DEBUG, 2)
+	return l.log(DEBUG)
 }
 
 func (l *logger) Info() *Event {
-	return l.log(INFO, 2)
+	return l.log(INFO)
 }
 
 func (l *logger) Warn() *Event {
-	return l.log(WARN, 2)
+	return l.log(WARN)
 }
 
 func (l *logger) Error() *Event {
-	return l.log(ERROR, 2)
+	return l.log(ERROR)
 }
 
 func (l *logger) Fatal() *Event {
-	return l.log(FATAL, 2)
+	return l.log(FATAL)
 }
 
 func (l *logger) Flush() {
@@ -242,36 +243,29 @@ func (l *logger) Close() {
 	}
 }
 
-func (l *logger) needFrame(level Level) bool {
+func (l *logger) needCaller(level Level) bool {
 	switch level {
 	case DEBUG:
-		return l.debugFrame
+		return l.debugCaller
 	case INFO:
-		return l.infoFrame
+		return l.infoCaller
 	case WARN:
-		return l.warnFrame
+		return l.warnCaller
 	case ERROR:
-		return l.errorFrame
+		return l.errorCaller
 	case FATAL:
-		return l.fatalFrame
+		return l.fatalCaller
 	default:
 		return false
 	}
 }
 
-func (l *logger) log(level Level, skip int) *Event {
+func (l *logger) log(level Level) *Event {
 	if level < l.level {
 		return nil
 	}
 
-	event := newEvent()
-	event.logger = l
-	event.level = level
-	if l.needFrame(level) {
-		event.pc, event.file, event.line, event.ok = runtime.Caller(skip)
-	}
-
-	return event
+	return newEvent(l, level)
 }
 
 func (l *logger) filter(record *Event) bool {
@@ -287,11 +281,15 @@ func (l *logger) filter(record *Event) bool {
 func (l *logger) handle(event *Event) {
 	for _, handler := range *(l.handlers) {
 		handler.Handle(event)
+		// TODO should flush and close here?
 	}
 }
 
 func (l *logger) handleEvent(event *Event) {
 	if !l.filter(event) {
+		if event.Level >= FATAL {
+			panic(event.Msg)
+		}
 		putEvent(event)
 		return
 	}
@@ -301,6 +299,9 @@ func (l *logger) handleEvent(event *Event) {
 	if l.propagate && l.parent != nil {
 		l.parent.handleEvent(event)
 	} else {
+		if event.Level >= FATAL {
+			panic(event.Msg)
+		}
 		putEvent(event)
 	}
 
@@ -308,7 +309,7 @@ func (l *logger) handleEvent(event *Event) {
 }
 
 /*
-func (l *logger) string() string {
+func (l *Logger) string() string {
 	var names []string
 	for k, _ := range l.children {
 		names = append(names, k.name)
@@ -323,7 +324,7 @@ func (l *logger) string() string {
 	return s
 }
 type CachedLogger struct {
-	logger
+	Logger
 
 	mu           sync.Mutex
 	cached       bool
@@ -335,7 +336,7 @@ func (c *CachedLogger) SetCached(cached bool) {
 }
 
 func (c *CachedLogger) handleEvent(record *Event) {
-	if record.level < l.level {
+	if record.Level < l.Level {
 		putEvent(record)
 		return
 	}

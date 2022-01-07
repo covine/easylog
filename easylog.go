@@ -31,11 +31,11 @@ func GetLevel() Level {
 }
 
 func EnableFrame(level Level) {
-	root.EnableFrame(level)
+	root.EnableCaller(level)
 }
 
 func DisableFrame(level Level) {
-	root.DisableFrame(level)
+	root.DisableCaller(level)
 }
 
 func AddFilter(f IFilter) {
@@ -55,23 +55,23 @@ func RemoveHandler(h IHandler) {
 }
 
 func Debug() *Event {
-	return root.log(DEBUG, 2)
+	return root.log(DEBUG)
 }
 
 func Info() *Event {
-	return root.log(INFO, 2)
+	return root.log(INFO)
 }
 
 func Warn() *Event {
-	return root.log(WARN, 2)
+	return root.log(WARN)
 }
 
 func Error() *Event {
-	return root.log(ERROR, 2)
+	return root.log(ERROR)
 }
 
 func Fatal() *Event {
-	return root.log(FATAL, 2)
+	return root.log(FATAL)
 }
 
 func Flush() {
@@ -83,16 +83,16 @@ func Close() {
 }
 
 /*
-func NewCachedLogger(parent *logger) *logger {
-	return &logger{
+func NewCachedLogger(parent *Logger) *Logger {
+	return &Logger{
 		name:        "",
 		manager:     m,
 		cached:      true,
-		level:       INFO,
+		Level:       INFO,
 		parent:      parent,
 		propagate:   false,
 		placeholder: false,
-		children:    make(map[*logger]interface{}),
+		children:    make(map[*Logger]interface{}),
 	}
 }
 

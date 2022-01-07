@@ -10,7 +10,7 @@ type LevelEqualFilter struct {
 }
 
 func (l *LevelEqualFilter) Filter(event *Event) bool {
-	return event.GetLevel() == l.Level
+	return event.Level == l.Level
 }
 
 /*
@@ -42,8 +42,8 @@ func (f *Filters) AddFilter(fi IFilter) {
 
 	find := false
 	for ele := f.filters.Front(); ele != nil; ele = ele.Next() {
-		filter, ok := ele.Value.(IFilter)
-		if ok && filter == fi {
+		filter, OK := ele.Value.(IFilter)
+		if OK && filter == fi {
 			find = true
 			break
 		}
@@ -68,8 +68,8 @@ func (f *Filters) RemoveFilter(fi IFilter) {
 	var next *list.Element
 	for ele := f.filters.Front(); ele != nil; ele = next {
 		next = ele.Next()
-		filter, ok := ele.Value.(IFilter)
-		if ok && filter == fi {
+		filter, OK := ele.Value.(IFilter)
+		if OK && filter == fi {
 			f.filters.Remove(ele)
 		}
 	}
@@ -81,8 +81,8 @@ func (f *Filters) Filter(record *Event) bool {
 	}
 
 	for ele := f.filters.Front(); ele != nil; ele = ele.Next() {
-		filter, ok := ele.Value.(IFilter)
-		if ok && filter != nil {
+		filter, OK := ele.Value.(IFilter)
+		if OK && filter != nil {
 			if filter.Filter(record) == false {
 				return false
 			}

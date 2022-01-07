@@ -13,8 +13,8 @@ type IHandler interface {
 type IEasyLogHandler interface {
 	IHandler
 	IFilters
-	SetLevel(level)
-	GetLevel() level
+	SetLevel(Level)
+	GetLevel() Level
 }
 
 // NewEasyLogHandler
@@ -28,19 +28,19 @@ func NewEasyLogHandler(ih IHandler) IEasyLogHandler {
 type handlerWrapper struct {
 	Filters
 	handler IHandler
-	level   level
+	Level   Level
 }
 
-func (h *handlerWrapper) SetLevel(level level) {
-	h.level = level
+func (h *handlerWrapper) SetLevel(Level Level) {
+	h.Level = Level
 }
 
-func (h *handlerWrapper) GetLevel() level {
-	return h.level
+func (h *handlerWrapper) GetLevel() Level {
+	return h.Level
 }
 
 func (h *handlerWrapper) Handle(record *Event) {
-	if record.level < h.level {
+	if record.Level < h.Level {
 		return
 	}
 
@@ -82,8 +82,8 @@ func (h *Handlers) AddHandler(hw IEasyLogHandler) {
 
 	find := false
 	for ele := h.handlers.Front(); ele != nil; ele = ele.Next() {
-		handler, ok := ele.Value.(IEasyLogHandler)
-		if ok && handler == hw {
+		handler, OK := ele.Value.(IEasyLogHandler)
+		if OK && handler == hw {
 			find = true
 			break
 		}
@@ -108,8 +108,8 @@ func (h *Handlers) RemoveHandler(hw IEasyLogHandler) {
 	var next *list.Element
 	for ele := h.handlers.Front(); ele != nil; ele = next {
 		next = ele.Next()
-		handler, ok := ele.Value.(IEasyLogHandler)
-		if ok && handler == hw {
+		handler, OK := ele.Value.(IEasyLogHandler)
+		if OK && handler == hw {
 			h.handlers.Remove(ele)
 		}
 	}
@@ -129,8 +129,8 @@ func (h *Handlers) Handle(record *Event) {
 	}
 
 	for ele := h.handlers.Front(); ele != nil; ele = ele.Next() {
-		handler, ok := ele.Value.(IEasyLogHandler)
-		if ok && handler != nil {
+		handler, OK := ele.Value.(IEasyLogHandler)
+		if OK && handler != nil {
 			handler.Handle(record)
 		}
 	}
@@ -141,8 +141,8 @@ func (h *Handlers) Flush() {
 		return
 	}
 	for ele := h.handlers.Front(); ele != nil; ele = ele.Next() {
-		handler, ok := ele.Value.(IEasyLogHandler)
-		if ok && handler != nil {
+		handler, OK := ele.Value.(IEasyLogHandler)
+		if OK && handler != nil {
 			handler.Flush()
 		}
 	}
@@ -153,8 +153,8 @@ func (h *Handlers) Close() {
 		return
 	}
 	for ele := h.handlers.Front(); ele != nil; ele = ele.Next() {
-		handler, ok := ele.Value.(IEasyLogHandler)
-		if ok && handler != nil {
+		handler, OK := ele.Value.(IEasyLogHandler)
+		if OK && handler != nil {
 			handler.Close()
 		}
 	}
