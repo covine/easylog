@@ -36,6 +36,7 @@ func newLogger() *logger {
 	filters := make([]IFilter, 0)
 	handlers := make([]IHandler, 0)
 
+	os.Stderr.Sync()
 	return &logger{
 		children:  make(map[*logger]struct{}),
 		tags:      new(sync.Map),
@@ -292,22 +293,18 @@ func (l *logger) handle(event *Event) {
 }
 
 func (l *logger) handleEvent(event *Event) {
+	// like zap check
 	if !l.filter(event) {
-		if event.Level >= FATAL {
-			panic(event.Msg)
-		}
 		putEvent(event)
 		return
 	}
 
+	// like zap write
 	l.handle(event)
 
 	if l.propagate && l.parent != nil {
 		l.parent.handleEvent(event)
 	} else {
-		if event.Level >= FATAL {
-			panic(event.Msg)
-		}
 		putEvent(event)
 	}
 

@@ -9,6 +9,28 @@ type IHandler interface {
 	Close()
 }
 
+type Core interface {
+	LevelEnabler
+
+	// With adds structured context to the Core.
+	With([]Field) Core
+	// Check determines whether the supplied Entry should be logged (using the
+	// embedded LevelEnabler and possibly some extra logic). If the entry
+	// should be logged, the Core adds itself to the CheckedEntry and returns
+	// the result.
+	//
+	// Callers must use Check before calling Write.
+	Check(Entry, *CheckedEntry) *CheckedEntry
+	// Write serializes the Entry and any Fields supplied at the log site and
+	// writes them to their destination.
+	//
+	// If called, Write should always log the Entry and Fields; it should not
+	// replicate the logic of Check.
+	Write(Entry, []Field) error
+	// Sync flushes buffered logs (if any).
+	Sync() error
+}
+
 /*
 type IEasyLogHandler interface {
 	IHandler
