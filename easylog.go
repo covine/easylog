@@ -46,11 +46,11 @@ func RemoveFilter(f IFilter) {
 	root.RemoveFilter(f)
 }
 
-func AddHandler(h IHandler) {
+func AddHandler(h Handler) {
 	root.AddHandler(h)
 }
 
-func RemoveHandler(h IHandler) {
+func RemoveHandler(h Handler) {
 	root.RemoveHandler(h)
 }
 
@@ -68,6 +68,10 @@ func Warn() *Event {
 
 func Error() *Event {
 	return root.log(ERROR)
+}
+
+func Panic() *Event {
+	return root.log(PANIC)
 }
 
 func Fatal() *Event {

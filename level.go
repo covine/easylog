@@ -7,5 +7,6 @@ const (
 	INFO
 	WARN
 	ERROR
+	PANIC
 	FATAL
 )

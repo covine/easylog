@@ -21,29 +21,25 @@ type logger struct {
 	errorCaller bool
 	fatalCaller bool
 
-	tags *sync.Map
-	kvs  *sync.Map
+	tags *map[string]interface{}
+	kvs  *map[string]interface{}
+	sync.Map
 
-	filters  *[]IFilter
-	fMu      sync.Mutex
-	handlers *[]IHandler
+	handlers *[]Handler
 	hMu      sync.Mutex
 
-	errWriter BufWriter
+	errorHandler ErrorHandler
 }
 
 func newLogger() *logger {
-	filters := make([]IFilter, 0)
-	handlers := make([]IHandler, 0)
+	handlers := make([]Handler, 0)
 
-	os.Stderr.Sync()
 	return &logger{
-		children:  make(map[*logger]struct{}),
-		tags:      new(sync.Map),
-		kvs:       new(sync.Map),
-		filters:   &filters,
-		handlers:  &handlers,
-		errWriter: NewSerialBufWriter(os.Stderr, -1),
+		children:     make(map[*logger]struct{}),
+		tags:         new(sync.Map),
+		kvs:          new(sync.Map),
+		handlers:     &handlers,
+		errorHandler: NewNopErrorHandler(),
 	}
 }
 
@@ -97,57 +93,7 @@ func (l *logger) DisableCaller(level Level) {
 	}
 }
 
-func (l *logger) AddFilter(f IFilter) {
-	if f == nil {
-		return
-	}
-
-	l.fMu.Lock()
-	defer l.fMu.Unlock()
-
-	for _, filter := range *(l.filters) {
-		if filter == f {
-			return
-		}
-	}
-
-	fs := make([]IFilter, len(*(l.filters)))
-	copy(fs, *(l.filters))
-	fs = append(fs, f)
-
-	l.filters = &fs
-}
-
-func (l *logger) RemoveFilter(f IFilter) {
-	if f == nil {
-		return
-	}
-
-	l.fMu.Lock()
-	defer l.fMu.Unlock()
-
-	find := false
-	for _, filter := range *(l.filters) {
-		if filter == f {
-			find = true
-		}
-	}
-	if !find {
-		return
-	}
-
-	fs := make([]IFilter, 0, len(*l.filters))
-	for _, filter := range *(l.filters) {
-		if filter == f {
-			continue
-		}
-		fs = append(fs, filter)
-	}
-
-	l.filters = &fs
-}
-
-func (l *logger) AddHandler(h IHandler) {
+func (l *logger) AddHandler(h Handler) {
 	if h == nil {
 		return
 	}
@@ -161,14 +107,14 @@ func (l *logger) AddHandler(h IHandler) {
 		}
 	}
 
-	hs := make([]IHandler, len(*(l.handlers)))
+	hs := make([]Handler, len(*(l.handlers)))
 	copy(hs, *(l.handlers))
 	hs = append(hs, h)
 
 	l.handlers = &hs
 }
 
-func (l *logger) RemoveHandler(h IHandler) {
+func (l *logger) RemoveHandler(h Handler) {
 	if h == nil {
 		return
 	}
@@ -186,7 +132,7 @@ func (l *logger) RemoveHandler(h IHandler) {
 		return
 	}
 
-	hs := make([]IHandler, 0, len(*l.handlers))
+	hs := make([]Handler, 0, len(*l.handlers))
 	for _, handler := range *(l.handlers) {
 		if handler == h {
 			continue
@@ -197,8 +143,8 @@ func (l *logger) RemoveHandler(h IHandler) {
 	l.handlers = &hs
 }
 
-func (l *logger) SetErrWriter(w BufWriter) {
-	l.errWriter = w
+func (l *logger) SetErrorHandler(w ErrorHandler) {
+	l.errorHandler = w
 }
 
 func (l *logger) SetTag(k, v interface{}) {
@@ -233,20 +179,29 @@ func (l *logger) Error() *Event {
 	return l.log(ERROR)
 }
 
+func (l *logger) Panic() *Event {
+	return l.log(PANIC)
+}
+
 func (l *logger) Fatal() *Event {
 	return l.log(FATAL)
 }
 
 func (l *logger) Flush() {
 	for _, handler := range *(l.handlers) {
-		handler.Flush()
+		if err := handler.Flush(); err != nil {
+			// ignore error produced by errorHandler
+			_ = l.errorHandler.Handle(err)
+		}
 	}
 }
 
 func (l *logger) Close() {
 	for _, handler := range *(l.handlers) {
-		handler.Flush()
-		handler.Close()
+		if err := handler.Close(); err != nil {
+			// ignore error produced by errorHandler
+			_ = l.errorHandler.Handle(err)
+		}
 	}
 }
 
@@ -267,128 +222,48 @@ func (l *logger) needCaller(level Level) bool {
 	}
 }
 
+// couldEnd could end the Logger with panic or os.exit().
+func (l *logger) couldEnd(level Level, v interface{}) {
+	// Note: If there is any Level bigger than PANIC added, the logic here should be updated.
+	switch level {
+	case PANIC:
+		l.Flush()
+		// ignore error produced by errorHandler
+		_ = l.errorHandler.Flush()
+		panic(v)
+	case FATAL:
+		l.Close()
+		// ignore error produced by errorHandler
+		_ = l.errorHandler.Close()
+		os.Exit(1)
+	}
+}
+
 func (l *logger) log(level Level) *Event {
 	if level < l.level {
+		l.couldEnd(level, "")
+		// No need to generate an Event for and then be handled.
 		return nil
 	}
 
 	return newEvent(l, level)
 }
 
-func (l *logger) filter(record *Event) bool {
-	for _, filter := range *(l.filters) {
-		if filter.Filter(record) == false {
-			return false
+func (l *logger) handle(event *Event) {
+	defer putEvent(event)
+
+	for _, handler := range *(l.handlers) {
+		next, err := handler.Handle(event)
+		if err != nil {
+			// ignore error produced by errorHandler
+			_ = l.errorHandler.Handle(err)
+		}
+		if !next {
+			return
 		}
 	}
-
-	return true
-}
-
-func (l *logger) handle(event *Event) {
-	for _, handler := range *(l.handlers) {
-		handler.Handle(event)
-		// TODO should flush and close here?
-	}
-}
-
-func (l *logger) handleEvent(event *Event) {
-	// like zap check
-	if !l.filter(event) {
-		putEvent(event)
-		return
-	}
-
-	// like zap write
-	l.handle(event)
 
 	if l.propagate && l.parent != nil {
-		l.parent.handleEvent(event)
-	} else {
-		putEvent(event)
-	}
-
-	return
-}
-
-/*
-func (l *Logger) string() string {
-	var names []string
-	for k, _ := range l.children {
-		names = append(names, k.name)
-	}
-
-	s := fmt.Sprintf("%s:%s", l.name, strings.Join(names, ","))
-
-	for k, _ := range l.children {
-		s = fmt.Sprintf("%s\n%s", s, k.string())
-	}
-
-	return s
-}
-type CachedLogger struct {
-	Logger
-
-	mu           sync.Mutex
-	cached       bool
-	cachedEvents []*Event
-}
-
-func (c *CachedLogger) SetCached(cached bool) {
-	c.cached = cached
-}
-
-func (c *CachedLogger) handleEvent(record *Event) {
-	if record.Level < l.Level {
-		putEvent(record)
-		return
-	}
-
-	if !l.filter(record) {
-		putEvent(record)
-		return
-	}
-
-	if l.cached {
-		l.mu.Lock()
-		defer l.mu.Unlock()
-
-		if l.cachedEvents == nil {
-			l.cachedEvents = make([]*Event, 0)
-		}
-		l.cachedEvents = append(l.cachedEvents, record)
-
-		return
-	} else {
-		l.Handlers.Handle(record)
-
-		if l.propagate && l.parent != nil {
-			l.parent.handleEvent(record)
-		} else {
-			putEvent(record)
-		}
-
-		return
+		l.parent.handle(event)
 	}
 }
-
-func (c *CachedLogger) Flush() {
-	if l.cached {
-		l.mu.Lock()
-		defer l.mu.Unlock()
-
-		for _, record := range l.cachedEvents {
-			l.Handlers.Handle(record)
-			if l.propagate && l.parent != nil {
-				l.parent.handleEvent(record)
-			} else {
-				putEvent(record)
-			}
-		}
-
-		l.cachedEvents = nil
-	}
-
-	l.Handlers.Flush()
-}
-*/

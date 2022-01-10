@@ -2,6 +2,7 @@ package easylog
 
 import (
 	"fmt"
+	"os"
 	"runtime"
 	"sync"
 	"time"
@@ -117,10 +118,10 @@ func (e *Event) log(msg string, skip int) {
 		frame, ok := e.getCallerFrame(skip)
 		if !ok {
 			// TODO design
-			_, _ = fmt.Fprintf(e.Logger.errWriter, "[%v] [%v] [%v]:get caller failed\n",
-				e.Logger.name, e.Level, e.Time,
-			)
-			_ = e.Logger.errWriter.Flush()
+			// _, _ = fmt.Fprintf(e.Logger.errHandler, "[%v] [%v] [%v]:get caller failed\n",
+			//e.Logger.name, e.Level, e.Time,
+			//)
+			_ = e.Logger.errHandler.Flush()
 		}
 
 		e.OK = ok
@@ -131,13 +132,9 @@ func (e *Event) log(msg string, skip int) {
 	}
 	// TODO need stack?
 
-	e.Logger.handleEvent(e)
+	e.Logger.handle(e)
 
-	// TODO panic msg?
-	if e.Level >= FATAL {
-		// FIXME it's os.exit(1)
-		panic(e.Msg)
-	}
+	e.Logger.couldEnd(e.Level, e.Msg)
 }
 
 func (e *Event) getCallerFrame(skip int) (frame runtime.Frame, ok bool) {
