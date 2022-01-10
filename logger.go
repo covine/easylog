@@ -2,7 +2,6 @@ package easylog
 
 import (
 	"os"
-	"sync"
 )
 
 type logger struct {
@@ -15,18 +14,13 @@ type logger struct {
 	propagate bool
 	level     Level
 
-	debugCaller bool
-	infoCaller  bool
-	warnCaller  bool
-	errorCaller bool
-	fatalCaller bool
+	caller map[Level]bool
+	stack  map[Level]bool
 
-	tags *map[string]interface{}
-	kvs  *map[string]interface{}
-	sync.Map
+	tags map[string]interface{}
+	kvs  map[string]interface{}
 
-	handlers *[]Handler
-	hMu      sync.Mutex
+	handlers []Handler
 
 	errorHandler ErrorHandler
 }
@@ -36,9 +30,9 @@ func newLogger() *logger {
 
 	return &logger{
 		children:     make(map[*logger]struct{}),
-		tags:         new(sync.Map),
-		kvs:          new(sync.Map),
-		handlers:     &handlers,
+		tags:         make(map[string]interface{}),
+		kvs:          make(map[string]interface{}),
+		handlers:     handlers,
 		errorHandler: NewNopErrorHandler(),
 	}
 }
@@ -73,6 +67,8 @@ func (l *logger) EnableCaller(level Level) {
 		l.warnCaller = true
 	case ERROR:
 		l.errorCaller = true
+	case PANIC:
+		l.panicCaller = true
 	case FATAL:
 		l.fatalCaller = true
 	}
@@ -88,6 +84,8 @@ func (l *logger) DisableCaller(level Level) {
 		l.warnCaller = false
 	case ERROR:
 		l.errorCaller = false
+	case PANIC:
+		l.panicCaller = false
 	case FATAL:
 		l.fatalCaller = false
 	}
@@ -98,20 +96,13 @@ func (l *logger) AddHandler(h Handler) {
 		return
 	}
 
-	l.hMu.Lock()
-	defer l.hMu.Unlock()
-
-	for _, handler := range *(l.handlers) {
+	for _, handler := range l.handlers {
 		if handler == h {
 			return
 		}
 	}
 
-	hs := make([]Handler, len(*(l.handlers)))
-	copy(hs, *(l.handlers))
-	hs = append(hs, h)
-
-	l.handlers = &hs
+	l.handlers = append(l.handlers, h)
 }
 
 func (l *logger) RemoveHandler(h Handler) {
@@ -119,47 +110,31 @@ func (l *logger) RemoveHandler(h Handler) {
 		return
 	}
 
-	l.hMu.Lock()
-	defer l.hMu.Unlock()
-
-	find := false
-	for _, handler := range *(l.handlers) {
+	for i, handler := range l.handlers {
 		if handler == h {
-			find = true
+			l.handlers = append(l.handlers[:i], l.handlers[i+1:]...)
+			return
 		}
 	}
-	if !find {
-		return
-	}
-
-	hs := make([]Handler, 0, len(*l.handlers))
-	for _, handler := range *(l.handlers) {
-		if handler == h {
-			continue
-		}
-		hs = append(hs, handler)
-	}
-
-	l.handlers = &hs
 }
 
 func (l *logger) SetErrorHandler(w ErrorHandler) {
 	l.errorHandler = w
 }
 
-func (l *logger) SetTag(k, v interface{}) {
-	l.tags.Store(k, v)
+func (l *logger) SetTag(k string, v interface{}) {
+	l.tags[k] = v
 }
 
-func (l *logger) GetTags() *sync.Map {
+func (l *logger) GetTags() map[string]interface{} {
 	return l.tags
 }
 
-func (l *logger) SetKv(k, v interface{}) {
-	l.kvs.Store(k, v)
+func (l *logger) SetKv(k string, v interface{}) {
+	l.kvs[k] = v
 }
 
-func (l *logger) GetKvs() *sync.Map {
+func (l *logger) GetKvs() map[string]interface{} {
 	return l.kvs
 }
 
@@ -188,7 +163,7 @@ func (l *logger) Fatal() *Event {
 }
 
 func (l *logger) Flush() {
-	for _, handler := range *(l.handlers) {
+	for _, handler := range l.handlers {
 		if err := handler.Flush(); err != nil {
 			// ignore error produced by errorHandler
 			_ = l.errorHandler.Handle(err)
@@ -197,7 +172,7 @@ func (l *logger) Flush() {
 }
 
 func (l *logger) Close() {
-	for _, handler := range *(l.handlers) {
+	for _, handler := range l.handlers {
 		if err := handler.Close(); err != nil {
 			// ignore error produced by errorHandler
 			_ = l.errorHandler.Handle(err)
@@ -215,6 +190,8 @@ func (l *logger) needCaller(level Level) bool {
 		return l.warnCaller
 	case ERROR:
 		return l.errorCaller
+	case PANIC:
+		return l.panicCaller
 	case FATAL:
 		return l.fatalCaller
 	default:
@@ -252,7 +229,7 @@ func (l *logger) log(level Level) *Event {
 func (l *logger) handle(event *Event) {
 	defer putEvent(event)
 
-	for _, handler := range *(l.handlers) {
+	for _, handler := range l.handlers {
 		next, err := handler.Handle(event)
 		if err != nil {
 			// ignore error produced by errorHandler
