@@ -4,6 +4,7 @@ import (
 	"os"
 )
 
+// logger not thread-safe
 type logger struct {
 	manager     *manager
 	parent      *logger
@@ -14,30 +15,29 @@ type logger struct {
 	propagate bool
 	level     Level
 
+	handlers     []Handler
+	errorHandler ErrorHandler
+
 	caller map[Level]bool
 	stack  map[Level]bool
 
 	tags map[string]interface{}
 	kvs  map[string]interface{}
-
-	handlers []Handler
-
-	errorHandler ErrorHandler
 }
 
 func newLogger() *logger {
-	handlers := make([]Handler, 0)
-
 	return &logger{
 		children:     make(map[*logger]struct{}),
+		handlers:     make([]Handler, 0),
+		errorHandler: NewNopErrorHandler(),
+		caller:       make(map[Level]bool),
+		stack:        make(map[Level]bool),
 		tags:         make(map[string]interface{}),
 		kvs:          make(map[string]interface{}),
-		handlers:     handlers,
-		errorHandler: NewNopErrorHandler(),
 	}
 }
 
-func (l *logger) Name() string {
+func (l *logger) GetName() string {
 	return l.name
 }
 
@@ -57,76 +57,35 @@ func (l *logger) GetLevel() Level {
 	return l.level
 }
 
-func (l *logger) EnableCaller(level Level) {
-	switch level {
-	case DEBUG:
-		l.debugCaller = true
-	case INFO:
-		l.infoCaller = true
-	case WARN:
-		l.warnCaller = true
-	case ERROR:
-		l.errorCaller = true
-	case PANIC:
-		l.panicCaller = true
-	case FATAL:
-		l.fatalCaller = true
-	}
-}
-
-func (l *logger) DisableCaller(level Level) {
-	switch level {
-	case DEBUG:
-		l.debugCaller = false
-	case INFO:
-		l.infoCaller = false
-	case WARN:
-		l.warnCaller = false
-	case ERROR:
-		l.errorCaller = false
-	case PANIC:
-		l.panicCaller = false
-	case FATAL:
-		l.fatalCaller = false
-	}
-}
-
 func (l *logger) AddHandler(h Handler) {
-	if h == nil {
-		return
-	}
-
-	for _, handler := range l.handlers {
-		if handler == h {
-			return
-		}
-	}
-
 	l.handlers = append(l.handlers, h)
-}
-
-func (l *logger) RemoveHandler(h Handler) {
-	if h == nil {
-		return
-	}
-
-	for i, handler := range l.handlers {
-		if handler == h {
-			l.handlers = append(l.handlers[:i], l.handlers[i+1:]...)
-			return
-		}
-	}
 }
 
 func (l *logger) SetErrorHandler(w ErrorHandler) {
 	l.errorHandler = w
 }
 
+func (l *logger) EnableCaller(level Level) {
+	l.caller[level] = true
+}
+
+func (l *logger) DisableCaller(level Level) {
+	l.caller[level] = false
+}
+
+func (l *logger) EnableStack(level Level) {
+	l.stack[level] = true
+}
+
+func (l *logger) DisableStack(level Level) {
+	l.stack[level] = false
+}
+
 func (l *logger) SetTag(k string, v interface{}) {
 	l.tags[k] = v
 }
 
-func (l *logger) GetTags() map[string]interface{} {
+func (l *logger) Tags() map[string]interface{} {
 	return l.tags
 }
 
@@ -134,7 +93,7 @@ func (l *logger) SetKv(k string, v interface{}) {
 	l.kvs[k] = v
 }
 
-func (l *logger) GetKvs() map[string]interface{} {
+func (l *logger) Kvs() map[string]interface{} {
 	return l.kvs
 }
 
@@ -180,23 +139,20 @@ func (l *logger) Close() {
 	}
 }
 
-func (l *logger) needCaller(level Level) bool {
-	switch level {
-	case DEBUG:
-		return l.debugCaller
-	case INFO:
-		return l.infoCaller
-	case WARN:
-		return l.warnCaller
-	case ERROR:
-		return l.errorCaller
-	case PANIC:
-		return l.panicCaller
-	case FATAL:
-		return l.fatalCaller
-	default:
-		return false
+func (l *logger) logCaller(level Level) bool {
+	if need, ok := l.caller[level]; ok {
+		return need
 	}
+
+	return false
+}
+
+func (l *logger) logStack(level Level) bool {
+	if need, ok := l.stack[level]; ok {
+		return need
+	}
+
+	return false
 }
 
 // couldEnd could end the Logger with panic or os.exit().

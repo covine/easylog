@@ -2,12 +2,12 @@ package easylog
 
 import (
 	"fmt"
-	"os"
 	"runtime"
 	"sync"
 	"time"
 )
 
+// Event not thread-safe
 type Event struct {
 	Logger *logger
 
@@ -114,14 +114,14 @@ func (e *Event) log(msg string, skip int) {
 	e.Time = time.Now()
 	e.Msg = msg
 
-	if e.Logger.needCaller(e.Level) {
+	if e.Logger.logCaller(e.Level) {
 		frame, ok := e.getCallerFrame(skip)
 		if !ok {
 			// TODO design
 			// _, _ = fmt.Fprintf(e.Logger.errHandler, "[%v] [%v] [%v]:get caller failed\n",
 			//e.Logger.name, e.Level, e.Time,
 			//)
-			_ = e.Logger.errHandler.Flush()
+			_ = e.Logger.errorHandler.Flush()
 		}
 
 		e.OK = ok
