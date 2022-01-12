@@ -4,10 +4,14 @@ import (
 	"runtime"
 	"sync"
 
-	"github.com/covine/easylog/bufferpool"
+	"github.com/covine/easylog/buffer"
 )
 
 var (
+	_pool = buffer.NewPool()
+	// Get retrieves a buffer from the pool, creating one if necessary.
+	Get = _pool.Get
+
 	_stacktracePool = sync.Pool{
 		New: func() interface{} {
 			return newProgramCounters(64)
@@ -16,8 +20,9 @@ var (
 )
 
 func takeStacktrace(skip int) string {
-	buffer := bufferpool.Get()
+	buffer := Get()
 	defer buffer.Free()
+
 	programCounters := _stacktracePool.Get().(*programCounters)
 	defer _stacktracePool.Put(programCounters)
 
