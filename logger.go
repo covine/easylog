@@ -1,10 +1,8 @@
 package easylog
 
-import (
-	"os"
-)
-
-// logger not thread-safe
+// logger is not thread safe
+// Make sure to configure the logger before emitting logs,
+// And do not reconfigure the logger during runtime.
 type logger struct {
 	manager     *manager
 	parent      *logger
@@ -21,8 +19,8 @@ type logger struct {
 	caller map[Level]bool
 	stack  map[Level]bool
 
-	tags map[string]interface{}
-	kvs  map[string]interface{}
+	tags map[interface{}]interface{}
+	kvs  map[interface{}]interface{}
 }
 
 func newLogger() *logger {
@@ -32,12 +30,12 @@ func newLogger() *logger {
 		errorHandler: NewNopErrorHandler(),
 		caller:       make(map[Level]bool),
 		stack:        make(map[Level]bool),
-		tags:         make(map[string]interface{}),
-		kvs:          make(map[string]interface{}),
+		tags:         make(map[interface{}]interface{}),
+		kvs:          make(map[interface{}]interface{}),
 	}
 }
 
-func (l *logger) GetName() string {
+func (l *logger) Name() string {
 	return l.name
 }
 
@@ -58,7 +56,30 @@ func (l *logger) GetLevel() Level {
 }
 
 func (l *logger) AddHandler(h Handler) {
+	if h == nil {
+		return
+	}
+
+	for _, handler := range l.handlers {
+		if handler == h {
+			return
+		}
+	}
+
 	l.handlers = append(l.handlers, h)
+}
+
+func (l *logger) RemoveHandler(h Handler) {
+	if h == nil {
+		return
+	}
+
+	for i, handler := range l.handlers {
+		if handler == h {
+			l.handlers = append(l.handlers[:i], l.handlers[i+1:]...)
+			return
+		}
+	}
 }
 
 func (l *logger) SetErrorHandler(w ErrorHandler) {
@@ -81,19 +102,27 @@ func (l *logger) DisableStack(level Level) {
 	l.stack[level] = false
 }
 
-func (l *logger) SetTag(k string, v interface{}) {
+func (l *logger) SetTag(k interface{}, v interface{}) {
 	l.tags[k] = v
 }
 
-func (l *logger) Tags() map[string]interface{} {
+func (l *logger) DelTag(k interface{}) {
+	delete(l.tags, k)
+}
+
+func (l *logger) Tags() map[interface{}]interface{} {
 	return l.tags
 }
 
-func (l *logger) SetKv(k string, v interface{}) {
+func (l *logger) SetKv(k interface{}, v interface{}) {
 	l.kvs[k] = v
 }
 
-func (l *logger) Kvs() map[string]interface{} {
+func (l *logger) DelKv(k interface{}) {
+	delete(l.kvs, k)
+}
+
+func (l *logger) Kvs() map[interface{}]interface{} {
 	return l.kvs
 }
 
@@ -128,6 +157,9 @@ func (l *logger) Flush() {
 			_ = l.errorHandler.Handle(err)
 		}
 	}
+
+	// ignore error produced by errorHandler
+	_ = l.errorHandler.Flush()
 }
 
 func (l *logger) Close() {
@@ -137,6 +169,9 @@ func (l *logger) Close() {
 			_ = l.errorHandler.Handle(err)
 		}
 	}
+
+	// ignore error produced by errorHandler
+	_ = l.errorHandler.Close()
 }
 
 func (l *logger) logCaller(level Level) bool {
@@ -161,14 +196,10 @@ func (l *logger) couldEnd(level Level, v interface{}) {
 	switch level {
 	case PANIC:
 		l.Flush()
-		// ignore error produced by errorHandler
-		_ = l.errorHandler.Flush()
 		panic(v)
 	case FATAL:
 		l.Close()
-		// ignore error produced by errorHandler
-		_ = l.errorHandler.Close()
-		os.Exit(1)
+		exit(1)
 	}
 }
 
@@ -184,6 +215,10 @@ func (l *logger) log(level Level) *Event {
 
 func (l *logger) handle(event *Event) {
 	defer putEvent(event)
+
+	if event.Level < l.level {
+		return
+	}
 
 	for _, handler := range l.handlers {
 		next, err := handler.Handle(event)

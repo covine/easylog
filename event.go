@@ -7,7 +7,6 @@ import (
 	"time"
 )
 
-// Event not thread-safe
 type Event struct {
 	Logger *logger
 

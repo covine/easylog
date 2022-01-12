@@ -30,28 +30,56 @@ func GetLevel() Level {
 	return root.GetLevel()
 }
 
-func EnableFrame(level Level) {
-	root.EnableCaller(level)
-}
-
-func DisableFrame(level Level) {
-	root.DisableCaller(level)
-}
-
-func AddFilter(f IFilter) {
-	root.AddFilter(f)
-}
-
-func RemoveFilter(f IFilter) {
-	root.RemoveFilter(f)
-}
-
 func AddHandler(h Handler) {
 	root.AddHandler(h)
 }
 
 func RemoveHandler(h Handler) {
 	root.RemoveHandler(h)
+}
+
+func SetErrorHandler(h ErrorHandler) {
+	root.SetErrorHandler(h)
+}
+
+func EnableCaller(level Level) {
+	root.EnableCaller(level)
+}
+
+func DisableCaller(level Level) {
+	root.DisableCaller(level)
+}
+
+func EnableStack(level Level) {
+	root.EnableStack(level)
+}
+
+func DisableStack(level Level) {
+	root.DisableStack(level)
+}
+
+func SetTag(k string, v interface{}) {
+	root.SetTag(k, v)
+}
+
+func DelTag(k string) {
+	root.DelTag(k)
+}
+
+func Tags() map[interface{}]interface{} {
+	return root.Tags()
+}
+
+func SetKv(k interface{}, v interface{}) {
+	root.SetKv(k, v)
+}
+
+func DelKv(k interface{}) {
+	root.DelKv(k)
+}
+
+func Kvs() map[interface{}]interface{} {
+	return root.Kvs()
 }
 
 func Debug() *Event {
@@ -85,22 +113,3 @@ func Flush() {
 func Close() {
 	root.Close()
 }
-
-/*
-func NewCachedLogger(parent *Logger) *Logger {
-	return &Logger{
-		name:        "",
-		manager:     m,
-		cached:      true,
-		Level:       INFO,
-		parent:      parent,
-		propagate:   false,
-		placeholder: false,
-		children:    make(map[*Logger]interface{}),
-	}
-}
-
-func SetCached(cached bool) {
-	root.SetCached(cached)
-}
-*/
