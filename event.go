@@ -1,29 +1,93 @@
 package easylog
 
 import (
+	"errors"
 	"fmt"
 	"runtime"
 	"sync"
 	"time"
 )
 
+var _bytesPool = &sync.Pool{
+	New: func() interface{} {
+		return &Bytes{
+			bytes: make([]byte, 0, 1024),
+		}
+	},
+}
+
+func newBytes() *Bytes {
+	b := _bytesPool.Get().(*Bytes)
+	b.bytes = b.bytes[:0]
+	return b
+}
+
+func putBytes(b *Bytes) {
+	const max = 1 << 16
+	if cap(b.bytes) > max {
+		return
+	}
+	_bytesPool.Put(b)
+}
+
+type pcs struct {
+	pcs []uintptr
+}
+
+var _pcsPool = &sync.Pool{
+	New: func() interface{} {
+		return &pcs{make([]uintptr, 64)}
+	},
+}
+
+func newPcs() *pcs {
+	return _pcsPool.Get().(*pcs)
+}
+
+func putPcs(p *pcs) {
+	_pcsPool.Put(p)
+}
+
+type caller struct {
+	ok   bool
+	pc   uintptr
+	file string
+	line int
+	fc   string
+}
+
+func (c *caller) GetOK() bool {
+	return c.ok
+}
+
+func (c *caller) GetPC() uintptr {
+	return c.pc
+}
+
+func (c *caller) GetFile() string {
+	return c.file
+}
+
+func (c *caller) GetLine() int {
+	return c.line
+}
+
+func (c *caller) GetFunc() string {
+	return c.fc
+}
+
 type Event struct {
-	Logger *logger
+	logger *logger
 
-	Time  time.Time
-	Level Level
-	Tags  map[string]interface{}
-	Kvs   map[string]interface{}
-	Msg   string
-	Extra interface{}
+	time  time.Time
+	level Level
+	tags  map[interface{}]interface{}
+	kvs   map[interface{}]interface{}
+	msg   string
+	extra interface{}
 
-	OK   bool
-	PC   uintptr
-	File string
-	Line int
-	Func string
-
-	Stack string
+	caller caller
+	stack  string
 }
 
 var _eventPool = &sync.Pool{
@@ -35,22 +99,22 @@ var _eventPool = &sync.Pool{
 func newEvent(logger *logger, level Level) *Event {
 	r := _eventPool.Get().(*Event)
 
-	r.Logger = logger
+	r.logger = logger
 
-	r.Time = time.Time{}
-	r.Level = level
-	r.Tags = nil
-	r.Kvs = nil
-	r.Msg = ""
-	r.Extra = nil
+	r.time = time.Time{}
+	r.level = level
+	r.tags = nil
+	r.kvs = nil
+	r.msg = ""
+	r.extra = nil
 
-	r.OK = false
-	r.PC = 0
-	r.File = ""
-	r.Line = 0
-	r.Func = ""
+	r.caller.ok = false
+	r.caller.pc = 0
+	r.caller.file = ""
+	r.caller.line = 0
+	r.caller.fc = ""
 
-	r.Stack = ""
+	r.stack = ""
 
 	return r
 }
@@ -59,32 +123,36 @@ func putEvent(r *Event) {
 	_eventPool.Put(r)
 }
 
-func (e *Event) Tag(k string, v interface{}) *Event {
+func (e *Event) Tag(k interface{}, v interface{}) *Event {
 	if e == nil {
 		return e
 	}
 
-	if e.Tags == nil {
-		e.Tags = make(map[string]interface{})
+	if e.tags == nil {
+		e.tags = make(map[interface{}]interface{})
 	}
 
-	e.Tags[k] = v
+	e.tags[k] = v
 
 	return e
 }
 
-func (e *Event) Kv(k string, v interface{}) *Event {
+func (e *Event) Kv(k, v interface{}) *Event {
 	if e == nil {
 		return e
 	}
 
-	if e.Kvs == nil {
-		e.Kvs = make(map[string]interface{})
+	if e.kvs == nil {
+		e.kvs = make(map[interface{}]interface{})
 	}
 
-	e.Kvs[k] = v
+	e.kvs[k] = v
 
 	return e
+}
+
+func (e *Event) GetKvs() map[interface{}]interface{} {
+	return e.kvs
 }
 
 func (e *Event) Attach(extra interface{}) *Event {
@@ -92,7 +160,7 @@ func (e *Event) Attach(extra interface{}) *Event {
 		return e
 	}
 
-	e.Extra = extra
+	e.extra = extra
 
 	return e
 }
@@ -105,35 +173,70 @@ func (e *Event) Logf(msg string, args ...interface{}) {
 	e.log(fmt.Sprintf(msg, args...), 2)
 }
 
+func (e *Event) GetLogger() *logger {
+	return e.logger
+}
+
+func (e *Event) GetTime() time.Time {
+	return e.time
+}
+
+func (e *Event) GetTags() map[interface{}]interface{} {
+	return e.tags
+}
+
+func (e *Event) GetCaller() *caller {
+	return &e.caller
+}
+
+func (e *Event) GetLevel() Level {
+	return e.level
+}
+
+func (e *Event) GetStack() string {
+	return e.stack
+}
+
+func (e *Event) GetMsg() string {
+	return e.msg
+}
+
+func (e *Event) GetExtra() interface{} {
+	return e.extra
+}
+
 func (e *Event) log(msg string, skip int) {
 	if e == nil {
 		return
 	}
 
-	e.Time = time.Now()
-	e.Msg = msg
+	e.time = time.Now()
+	e.msg = msg
 
-	if e.Logger.logCaller(e.Level) {
+	if e.logger.logCaller(e.level) {
 		frame, ok := e.getCallerFrame(skip)
 		if !ok {
-			// TODO design
-			// _, _ = fmt.Fprintf(e.Logger.errHandler, "[%v] [%v] [%v]:get caller failed\n",
-			//e.Logger.name, e.Level, e.Time,
-			//)
-			_ = e.Logger.errorHandler.Flush()
+			_ = e.logger.errorHandler.Handle(
+				errors.New(
+					fmt.Sprintf("[%v] [%v] [%v]:get caller failed\n", e.logger.name, e.level, e.time),
+				),
+			)
 		}
 
-		e.OK = ok
-		e.PC = frame.PC
-		e.File = frame.File
-		e.Line = frame.Line
-		e.Func = frame.Function
+		e.caller.ok = ok
+		e.caller.pc = frame.PC
+		e.caller.file = frame.File
+		e.caller.line = frame.Line
+		e.caller.fc = frame.Function
 	}
-	// TODO need stack?
 
-	e.Logger.handle(e)
+	if e.logger.logStack(e.level) {
+		e.stack = e.stacktrace(skip)
+	}
 
-	e.Logger.couldEnd(e.Level, e.Msg)
+	e.logger.handle(e)
+
+	e.logger.couldEnd(e.level, e.msg)
 }
 
 func (e *Event) getCallerFrame(skip int) (frame runtime.Frame, ok bool) {
@@ -148,4 +251,45 @@ func (e *Event) getCallerFrame(skip int) (frame runtime.Frame, ok bool) {
 	frame, _ = runtime.CallersFrames(pc).Next()
 
 	return frame, frame.PC != 0
+}
+
+func (e *Event) stacktrace(skip int) string {
+	bs := newBytes()
+	defer putBytes(bs)
+
+	p := newPcs()
+	defer putPcs(p)
+
+	var numFrames int
+	for {
+		numFrames = runtime.Callers(skip+2, p.pcs)
+		if numFrames < len(p.pcs) {
+			break
+		}
+
+		p = &pcs{pcs: make([]uintptr, len(p.pcs)*2)}
+	}
+
+	i := 0
+	frames := runtime.CallersFrames(p.pcs[:numFrames])
+
+	for {
+		frame, more := frames.Next()
+		if i != 0 {
+			bs.AppendByte('\n')
+		}
+		i++
+		bs.AppendByte('\t')
+		bs.AppendString(frame.Function)
+		bs.AppendByte('\n')
+		bs.AppendByte('\t')
+		bs.AppendString(frame.File)
+		bs.AppendByte(':')
+		bs.AppendInt(int64(frame.Line))
+		if !more {
+			break
+		}
+	}
+
+	return bs.String()
 }

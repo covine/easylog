@@ -1,9 +1,11 @@
-package writer
+package tmp
 
 import (
 	"bufio"
 	"sync"
 	"time"
+
+	"github.com/covine/easylog/writer"
 
 	rl "github.com/lestrrat-go/file-rotatelogs"
 )
@@ -26,10 +28,10 @@ func NewRotateLogWriter(format, linkFile string, rotate, maxAge time.Duration, b
 	}
 
 	var bs int
-	if bufSize >= maxBufSize {
-		bs = maxBufSize
+	if bufSize >= writer.maxBufSize {
+		bs = writer.maxBufSize
 	} else if bufSize <= 0 {
-		bs = defaultBufSize
+		bs = writer.defaultBufSize
 	} else {
 		bs = bufSize
 	}

@@ -38,6 +38,10 @@ func RemoveHandler(h Handler) {
 	root.RemoveHandler(h)
 }
 
+func ResetHandler() {
+	root.ResetHandler()
+}
+
 func SetErrorHandler(h ErrorHandler) {
 	root.SetErrorHandler(h)
 }
@@ -66,6 +70,10 @@ func DelTag(k string) {
 	root.DelTag(k)
 }
 
+func ResetTag() {
+	root.ResetTag()
+}
+
 func Tags() map[interface{}]interface{} {
 	return root.Tags()
 }
@@ -76,6 +84,10 @@ func SetKv(k interface{}, v interface{}) {
 
 func DelKv(k interface{}) {
 	root.DelKv(k)
+}
+
+func ResetKv() {
+	root.ResetKv()
 }
 
 func Kvs() map[interface{}]interface{} {

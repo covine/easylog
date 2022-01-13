@@ -1,4 +1,4 @@
-package handler
+package tmp
 
 import (
 	"os"
@@ -12,12 +12,12 @@ type FileHandler struct {
 	f      *os.File
 }
 
-func (f *FileHandler) Handle(record *easylog.Event) {
+func (f *FileHandler) Handle(event *easylog.Event) {
 	var str string
 	if f.format != nil {
 		str = f.format(record)
 	} else {
-		str = record.msg
+		str = event.msg
 	}
 
 	_, _ = f.f.Write([]byte(str + "\n"))

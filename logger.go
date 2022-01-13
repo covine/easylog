@@ -1,5 +1,38 @@
 package easylog
 
+type Level int8
+
+const (
+	DEBUG Level = iota - 1
+	INFO
+	WARN
+	ERROR
+	PANIC
+	FATAL
+
+	_MIN = DEBUG
+	_MAX = FATAL
+)
+
+func (l Level) String() string {
+	switch l {
+	case DEBUG:
+		return "DEBUG"
+	case INFO:
+		return "INFO"
+	case WARN:
+		return "WARN"
+	case ERROR:
+		return "ERROR"
+	case PANIC:
+		return "PANIC"
+	case FATAL:
+		return "FATAL"
+	default:
+		return "UNKNOWN"
+	}
+}
+
 // logger is not thread safe
 // Make sure to configure the logger before emitting logs,
 // And do not reconfigure the logger during runtime.
@@ -82,24 +115,36 @@ func (l *logger) RemoveHandler(h Handler) {
 	}
 }
 
+func (l *logger) ResetHandler() {
+	l.handlers = make([]Handler, 0)
+}
+
 func (l *logger) SetErrorHandler(w ErrorHandler) {
 	l.errorHandler = w
 }
 
 func (l *logger) EnableCaller(level Level) {
-	l.caller[level] = true
+	if level >= _MIN && level <= _MAX {
+		l.caller[level] = true
+	}
 }
 
 func (l *logger) DisableCaller(level Level) {
-	l.caller[level] = false
+	if level >= _MIN && level <= _MAX {
+		l.caller[level] = false
+	}
 }
 
 func (l *logger) EnableStack(level Level) {
-	l.stack[level] = true
+	if level >= _MIN && level <= _MAX {
+		l.stack[level] = true
+	}
 }
 
 func (l *logger) DisableStack(level Level) {
-	l.stack[level] = false
+	if level >= _MIN && level <= _MAX {
+		l.stack[level] = false
+	}
 }
 
 func (l *logger) SetTag(k interface{}, v interface{}) {
@@ -108,6 +153,10 @@ func (l *logger) SetTag(k interface{}, v interface{}) {
 
 func (l *logger) DelTag(k interface{}) {
 	delete(l.tags, k)
+}
+
+func (l *logger) ResetTag() {
+	l.tags = make(map[interface{}]interface{})
 }
 
 func (l *logger) Tags() map[interface{}]interface{} {
@@ -120,6 +169,10 @@ func (l *logger) SetKv(k interface{}, v interface{}) {
 
 func (l *logger) DelKv(k interface{}) {
 	delete(l.kvs, k)
+}
+
+func (l *logger) ResetKv() {
+	l.kvs = make(map[interface{}]interface{})
 }
 
 func (l *logger) Kvs() map[interface{}]interface{} {
@@ -192,7 +245,7 @@ func (l *logger) logStack(level Level) bool {
 
 // couldEnd could end the Logger with panic or os.exit().
 func (l *logger) couldEnd(level Level, v interface{}) {
-	// Note: If there is any Level bigger than PANIC added, the logic here should be updated.
+	// Note: If there is any level bigger than PANIC added, the logic here should be updated.
 	switch level {
 	case PANIC:
 		l.Flush()
@@ -216,7 +269,7 @@ func (l *logger) log(level Level) *Event {
 func (l *logger) handle(event *Event) {
 	defer putEvent(event)
 
-	if event.Level < l.level {
+	if event.level < l.level {
 		return
 	}
 

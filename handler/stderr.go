@@ -7,28 +7,44 @@ import (
 )
 
 type StderrHandler struct {
-	format easylog.Formatter
+	format Formatter
 }
 
-func (s *StderrHandler) Handle(record *easylog.Event) {
-	var str string
-	if s.format != nil {
-		str = s.format(record)
-	} else {
-		str = record.msg
+func (s *StderrHandler) Handle(e *easylog.Event) (bool, error) {
+	b, err := s.format(e)
+	if err != nil {
+		return true, err
 	}
 
-	_, _ = os.Stderr.Write([]byte(str + "\n"))
+	if _, err := os.Stderr.Write(b); err != nil {
+		return true, err
+	}
+
+	if _, err := os.Stderr.WriteString("\n"); err != nil {
+		return true, err
+	}
+
+	return true, nil
 }
 
-func (s *StderrHandler) Flush() {
+func (s *StderrHandler) Flush() error {
+	return os.Stderr.Sync()
 }
 
-func (s *StderrHandler) Close() {
+func (s *StderrHandler) Close() error {
+	if err := os.Stderr.Sync(); err != nil {
+		return err
+	}
+
+	if err := os.Stderr.Close(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func NewStderrHandler(format easylog.Formatter) easylog.IEasyLogHandler {
-	return easylog.NewEasyLogHandler(&StderrHandler{
+func NewStderrHandler(format Formatter) *StderrHandler {
+	return &StderrHandler{
 		format: format,
-	})
+	}
 }

@@ -33,6 +33,16 @@ func TestLogger_SetGetLevel(t *testing.T) {
 	assert.Equal(t, PANIC, l.GetLevel())
 }
 
+func TestLogger_LevelString(t *testing.T) {
+	assert.Equal(t, "DEBUG", DEBUG.String())
+	assert.Equal(t, "INFO", INFO.String())
+	assert.Equal(t, "WARN", WARN.String())
+	assert.Equal(t, "ERROR", ERROR.String())
+	assert.Equal(t, "PANIC", PANIC.String())
+	assert.Equal(t, "FATAL", FATAL.String())
+	assert.Equal(t, "UNKNOWN", Level(100).String())
+}
+
 func TestLogger_EnableDisableCaller(t *testing.T) {
 	l := newLogger()
 
@@ -111,6 +121,28 @@ func TestLogger_EnableDisableStack(t *testing.T) {
 	assert.Equal(t, false, l.logStack(FATAL))
 }
 
+func TestLogger_NopErrorHandler(t *testing.T) {
+	l := newLogger()
+	assert.Equal(t, nopErrorHandler{}, *(l.errorHandler.(*nopErrorHandler)))
+
+	h := &MockHandler{}
+	h.On("Handle", mock.MatchedBy(func(e *Event) bool {
+		return e.GetLogger() == l && e.level == INFO && e.msg == "1" &&
+			e.caller.pc == 0 && e.caller.file == "" && e.caller.line == 0 && e.caller.ok == false &&
+			e.time.Second() > 0
+	})).Once().Return(true, errors.New("ph handle error"))
+	h.On("Flush").Return(errors.New("h flush error"))
+	h.On("Close").Return(nil)
+	l.AddHandler(h)
+
+	l.Info().Logf("1")
+
+	l.Flush()
+	l.Close()
+
+	h.AssertExpectations(t)
+}
+
 func TestLogger_SetErrorHandler(t *testing.T) {
 	l := newLogger()
 	assert.Equal(t, nopErrorHandler{}, *(l.errorHandler.(*nopErrorHandler)))
@@ -174,13 +206,13 @@ func TestLogger_AddRemoveHandler(t *testing.T) {
 	l.RemoveHandler(nil)
 	assert.Equal(t, 0, len(l.handlers))
 
-	n := &nopHandler{}
+	n := NewNopHandler()
 
 	l.AddHandler(n)
 	assert.Equal(t, 1, len(l.handlers))
 	assert.Equal(t, n, l.handlers[0])
 
-	l.AddHandler(&nopHandler{})
+	l.AddHandler(NewNopHandler())
 	assert.Equal(t, 1, len(l.handlers))
 	assert.Equal(t, n, l.handlers[0])
 
@@ -225,9 +257,9 @@ func TestLogger_Log(t *testing.T) {
 
 	ph := &MockHandler{}
 	ph.On("Handle", mock.MatchedBy(func(e *Event) bool {
-		return e.Logger == l && e.Level == ERROR && e.Msg == "4" &&
-			e.PC == 0 && e.File == "" && e.Line == 0 && e.OK == false &&
-			e.Time.Second() > 0
+		return e.GetLogger() == l && e.level == ERROR && e.msg == "4" &&
+			e.caller.pc == 0 && e.caller.file == "" && e.caller.line == 0 && e.caller.ok == false &&
+			e.time.Second() > 0
 	})).Once().Return(true, errors.New("ph handle error"))
 	ph.On("Flush").Return(errors.New("h flush error"))
 	ph.On("Close").Return(nil)
@@ -235,9 +267,9 @@ func TestLogger_Log(t *testing.T) {
 
 	pn := &MockHandler{}
 	pn.On("Handle", mock.MatchedBy(func(e *Event) bool {
-		return e.Logger == l && e.Level == ERROR && e.Msg == "4" &&
-			e.PC == 0 && e.File == "" && e.Line == 0 && e.OK == false &&
-			e.Time.Second() > 0
+		return e.GetLogger() == l && e.level == ERROR && e.msg == "4" &&
+			e.caller.pc == 0 && e.caller.file == "" && e.caller.line == 0 && e.caller.ok == false &&
+			e.time.Second() > 0
 	})).Once().Return(false, nil)
 	pn.On("Flush").Return(nil)
 	pn.On("Close").Return(nil)
@@ -265,29 +297,29 @@ func TestLogger_Log(t *testing.T) {
 	e.On("Close").Return(nil)
 	l.SetErrorHandler(e)
 
-	n := &nopHandler{}
+	n := NewNopHandler()
 	l.AddHandler(n)
 
 	h := &MockHandler{}
 	h.On("Handle", mock.MatchedBy(func(e *Event) bool {
-		return e.Logger == l && e.Level == DEBUG && e.Msg == "1" &&
-			e.PC == 0 && e.File == "" && e.Line == 0 && e.OK == false &&
-			e.Time.Second() > 0
+		return e.GetLogger() == l && e.level == DEBUG && e.msg == "1" &&
+			e.caller.pc == 0 && e.caller.file == "" && e.caller.line == 0 && e.caller.ok == false &&
+			e.time.Second() > 0
 	})).Once().Return(false, errors.New("h handle error"))
 	h.On("Handle", mock.MatchedBy(func(e *Event) bool {
-		return e.Logger == l && e.Level == INFO && e.Msg == "2" &&
-			e.PC == 0 && e.File == "" && e.Line == 0 && e.OK == false &&
-			e.Time.Second() > 0
+		return e.GetLogger() == l && e.level == INFO && e.msg == "2" &&
+			e.caller.pc == 0 && e.caller.file == "" && e.caller.line == 0 && e.caller.ok == false &&
+			e.time.Second() > 0
 	})).Once().Return(true, nil)
 	h.On("Handle", mock.MatchedBy(func(e *Event) bool {
-		return e.Logger == l && e.Level == WARN && e.Msg == "3" &&
-			e.PC == 0 && e.File == "" && e.Line == 0 && e.OK == false &&
-			e.Time.Second() > 0
+		return e.GetLogger() == l && e.level == WARN && e.msg == "3" &&
+			e.caller.pc == 0 && e.caller.file == "" && e.caller.line == 0 && e.caller.ok == false &&
+			e.time.Second() > 0
 	})).Once().Return(true, nil)
 	h.On("Handle", mock.MatchedBy(func(e *Event) bool {
-		return e.Logger == l && e.Level == ERROR && e.Msg == "4" &&
-			e.PC == 0 && e.File == "" && e.Line == 0 && e.OK == false &&
-			e.Time.Second() > 0
+		return e.GetLogger() == l && e.level == ERROR && e.msg == "4" &&
+			e.caller.pc == 0 && e.caller.file == "" && e.caller.line == 0 && e.caller.ok == false &&
+			e.time.Second() > 0
 	})).Once().Return(true, nil)
 	h.On("Flush").Return(errors.New("h flush error"))
 	h.On("Close").Return(nil)
@@ -295,19 +327,19 @@ func TestLogger_Log(t *testing.T) {
 
 	m := &MockHandler{}
 	m.On("Handle", mock.MatchedBy(func(e *Event) bool {
-		return e.Logger == l && e.Level == INFO && e.Msg == "2" &&
-			e.PC == 0 && e.File == "" && e.Line == 0 && e.OK == false &&
-			e.Time.Second() > 0
+		return e.GetLogger() == l && e.level == INFO && e.msg == "2" &&
+			e.caller.pc == 0 && e.caller.file == "" && e.caller.line == 0 && e.caller.ok == false &&
+			e.time.Second() > 0
 	})).Once().Return(true, nil)
 	m.On("Handle", mock.MatchedBy(func(e *Event) bool {
-		return e.Logger == l && e.Level == WARN && e.Msg == "3" &&
-			e.PC == 0 && e.File == "" && e.Line == 0 && e.OK == false &&
-			e.Time.Second() > 0
+		return e.GetLogger() == l && e.level == WARN && e.msg == "3" &&
+			e.caller.pc == 0 && e.caller.file == "" && e.caller.line == 0 && e.caller.ok == false &&
+			e.time.Second() > 0
 	})).Once().Return(true, nil)
 	m.On("Handle", mock.MatchedBy(func(e *Event) bool {
-		return e.Logger == l && e.Level == ERROR && e.Msg == "4" &&
-			e.PC == 0 && e.File == "" && e.Line == 0 && e.OK == false &&
-			e.Time.Second() > 0
+		return e.GetLogger() == l && e.level == ERROR && e.msg == "4" &&
+			e.caller.pc == 0 && e.caller.file == "" && e.caller.line == 0 && e.caller.ok == false &&
+			e.time.Second() > 0
 	})).Once().Return(true, nil)
 	m.On("Flush").Return(nil)
 	m.On("Close").Return(errors.New("m close error"))
@@ -350,9 +382,9 @@ func TestLogger_PanicWithLevelINFO(t *testing.T) {
 
 	h := &MockHandler{}
 	h.On("Handle", mock.MatchedBy(func(e *Event) bool {
-		return e.Logger == l && e.Level == PANIC && e.Msg == "1" &&
-			e.PC == 0 && e.File == "" && e.Line == 0 && e.OK == false &&
-			e.Time.Second() > 0
+		return e.GetLogger() == l && e.level == PANIC && e.msg == "1" &&
+			e.caller.pc == 0 && e.caller.file == "" && e.caller.line == 0 && e.caller.ok == false &&
+			e.time.Second() > 0
 	})).Once().Return(false, errors.New("h handle error"))
 	h.On("Flush").Return(errors.New("h flush error"))
 	l.AddHandler(h)
@@ -424,9 +456,9 @@ func TestLogger_FatalWithLevelINFO(t *testing.T) {
 
 	h := &MockHandler{}
 	h.On("Handle", mock.MatchedBy(func(e *Event) bool {
-		return e.Logger == l && e.Level == FATAL && e.Msg == "1" &&
-			e.PC == 0 && e.File == "" && e.Line == 0 && e.OK == false &&
-			e.Time.Second() > 0
+		return e.GetLogger() == l && e.level == FATAL && e.msg == "1" &&
+			e.caller.pc == 0 && e.caller.file == "" && e.caller.line == 0 && e.caller.ok == false &&
+			e.time.Second() > 0
 	})).Once().Return(false, errors.New("h handle error"))
 	h.On("Close").Return(errors.New("h close error"))
 	l.AddHandler(h)
