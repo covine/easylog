@@ -2,25 +2,24 @@ package handler
 
 import (
 	"context"
-	"sync"
 	"time"
 
 	"github.com/covine/easylog"
 	"github.com/covine/easylog/diode"
 )
 
-type diodePuller interface {
+type puller interface {
 	diode.Diode
 
 	Next() diode.GenericDataType
 }
 
 type RingBufferHandler struct {
-	handler  easylog.Handler
-	puller   diodePuller
-	interval time.Duration
-	cancel   context.CancelFunc
-	done     chan struct{}
+	handler    easylog.Handler
+	ringBuffer diode.Diode
+	puller     puller
+	cancel     context.CancelFunc
+	done       chan struct{}
 }
 
 func RingBufferWrapper(
@@ -53,26 +52,31 @@ func RingBufferWrapper(
 }
 
 func (r *RingBufferHandler) Handle(e *easylog.Event) (bool, error) {
-	// p is pooled in zerolog so we can't hold it passed this call, hence the
-	// copy.
-	//p = append(bufPool.Get().([]byte), p...)
-	//dw.d.Set(diode.GenericDataType(&p))
-	//return len(p), nil
+	r.puller.Set(diode.GenericDataType(e))
 
 	return true, nil
 }
 
 func (r *RingBufferHandler) Flush() error {
-	return nil
+	for {
+		data, ok := r.ringBuffer.TryNext()
+		if !ok {
+			return nil
+		}
+
+		e := (*easylog.Event)(data)
+		// TODO handle event
+		// TODO putEvent
+		println(e)
+	}
 }
 
 func (r *RingBufferHandler) Close() error {
 	r.cancel()
 	<-r.done
 
-	//if w, ok := dw.w.(io.Closer); ok {
-	//return w.Close()
-	//}
+	// TODO r.handler.close()
+	// writer?
 
 	return nil
 }
@@ -86,24 +90,11 @@ func (r *RingBufferHandler) pull() {
 			return
 		}
 
-		//p := *(*[]byte)(d)
-		//dw.w.Write(p)
-
-		// Proper usage of a sync.Pool requires each entry to have approximately
-		// the same memory cost. To obtain this property when the stored type
-		// contains a variably-sized buffer, we add a hard limit on the maximum buffer
-		// to place back in the pool.
-		//
-		// See https://golang.org/issue/23199
-		//const maxSize = 1 << 16 // 64KiB
-		//if cap(p) <= maxSize {
-		//bufPool.Put(p[:0])
-		//}
+		_ = (*easylog.Event)(d)
+		// TODO handler e
+		// write?
+		// another event pool here?
 	}
 }
 
-var bufPool = &sync.Pool{
-	New: func() interface{} {
-		return make([]byte, 0, 500)
-	},
-}
+// another pool here?
