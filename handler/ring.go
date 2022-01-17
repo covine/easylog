@@ -8,35 +8,43 @@ import (
 	"github.com/covine/easylog/diode"
 )
 
-type puller interface {
+type Puller interface {
 	diode.Diode
 
 	Next() diode.GenericDataType
 }
 
+type Next func(*easylog.Event) (bool, error)
+type Handle func(*easylog.Event) error
+
+// RingBufferHandler is a Ring Buffer Handler
 type RingBufferHandler struct {
-	handler    easylog.Handler
-	ringBuffer diode.Diode
-	puller     puller
-	cancel     context.CancelFunc
-	done       chan struct{}
+	next   Next
+	handle Handle
+	diode  diode.Diode
+	puller Puller
+	cancel context.CancelFunc
+	done   chan struct{}
 }
 
-func RingBufferWrapper(
-	h easylog.Handler, size int, interval time.Duration, alert diode.AlertFunc,
+func RingBufferWrap(
+	next Next, handle Handle, size int, alert diode.AlertFunc, pullInterval time.Duration,
 ) easylog.Handler {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	r := &RingBufferHandler{
+		next:   next,
+		handle: handle,
 		cancel: cancel,
 		done:   make(chan struct{}),
 	}
 
 	d := diode.NewManyToOne(size, alert)
-	if interval > 0 {
+
+	if pullInterval > 0 {
 		r.puller = diode.NewPoller(
 			d,
-			diode.WithPollingInterval(interval),
+			diode.WithPollingInterval(pullInterval),
 			diode.WithPollingContext(ctx),
 		)
 	} else {
@@ -52,9 +60,8 @@ func RingBufferWrapper(
 }
 
 func (r *RingBufferHandler) Handle(e *easylog.Event) (bool, error) {
-	r.puller.Set(diode.GenericDataType(e))
-
-	return true, nil
+	r.puller.Set(diode.GenericDataType(e.Clone()))
+	return r.next(e)
 }
 
 func (r *RingBufferHandler) Flush() error {
@@ -75,9 +82,6 @@ func (r *RingBufferHandler) Close() error {
 	r.cancel()
 	<-r.done
 
-	// TODO r.handler.close()
-	// writer?
-
 	return nil
 }
 
@@ -90,11 +94,12 @@ func (r *RingBufferHandler) pull() {
 			return
 		}
 
-		_ = (*easylog.Event)(d)
-		// TODO handler e
-		// write?
-		// another event pool here?
+		e := (*easylog.Event)(d)
+		err := r.handle(e)
+		if err != nil {
+			// TODO errHandler
+			e.Put()
+		}
+		e.Put()
 	}
 }
-
-// another pool here?

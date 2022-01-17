@@ -267,7 +267,7 @@ func (l *logger) log(level Level) *Event {
 }
 
 func (l *logger) handle(event *Event) {
-	defer putEvent(event)
+	defer event.Put()
 
 	if event.level < l.level {
 		return

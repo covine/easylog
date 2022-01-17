@@ -17,7 +17,7 @@ func TestNilEvent(t *testing.T) {
 
 func TestEventWithNilLogger(t *testing.T) {
 	e := newEvent(nil, INFO)
-	defer putEvent(e)
+	defer e.Put()
 
 	assert.Equal(t, INFO, e.GetLevel())
 	assert.Equal(t, nil, e.GetExtra())

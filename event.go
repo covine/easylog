@@ -119,10 +119,6 @@ func newEvent(logger *logger, level Level) *Event {
 	return r
 }
 
-func putEvent(r *Event) {
-	_eventPool.Put(r)
-}
-
 func (e *Event) Tag(k interface{}, v interface{}) *Event {
 	if e == nil {
 		return e
@@ -203,6 +199,29 @@ func (e *Event) GetMsg() string {
 
 func (e *Event) GetExtra() interface{} {
 	return e.extra
+}
+
+func (e *Event) Clone() *Event {
+	r := _eventPool.Get().(*Event)
+
+	r.logger = e.logger
+
+	r.time = e.time
+	r.level = e.level
+	r.tags = e.tags
+	r.kvs = e.kvs
+	r.msg = e.msg
+	r.extra = e.extra
+
+	r.caller = e.caller
+
+	r.stack = e.stack
+
+	return r
+}
+
+func (e *Event) Put() {
+	_eventPool.Put(e)
 }
 
 func (e *Event) log(msg string, skip int) {
