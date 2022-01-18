@@ -1,102 +1,127 @@
 package easylog
 
 var m *manager
-var root *Logger
+var root *logger
 
 func init() {
 	m = &manager{
-		loggerMap: make(map[string]*Logger),
+		loggerMap: make(map[string]*logger),
 	}
 
-	root = &Logger{
-		name:           "root",
-		manager:        m,
-		level:          NOTSET,
-		parent:         nil,
-		propagate:      true,
-		isPlaceholder:  false,
-		placeholderMap: make(map[*Logger]interface{}),
-	}
+	root = m.getLogger("")
+
 	m.root = root
 }
 
-func GetRootLogger() *Logger {
-	return m.root
-}
-
-func GetLogger(name string) *Logger {
+func GetLogger(name string) *logger {
 	return m.getLogger(name)
 }
 
-func NewCachedLogger(parent *Logger) *Logger {
-	return &Logger{
-		name:           "",
-		manager:        m,
-		cached:         true,
-		level:          NOTSET,
-		parent:         parent,
-		propagate:      false,
-		isPlaceholder:  false,
-		placeholderMap: make(map[*Logger]interface{}),
-	}
+// GetRootLogger is equivalent to GetLogger("")
+func GetRootLogger() *logger {
+	return m.getLogger("")
 }
 
 func SetLevel(level Level) {
 	root.SetLevel(level)
 }
 
-func SetLevelByString(level string) {
-	root.SetLevelByString(level)
+func GetLevel() Level {
+	return root.GetLevel()
 }
 
-func EnableFrame(level Level) {
-	root.EnableFrame(level)
+func AddHandler(h Handler) {
+	root.AddHandler(h)
 }
 
-func DisableFrame(level Level) {
-	root.DisableFrame(level)
+func RemoveHandler(h Handler) {
+	root.RemoveHandler(h)
 }
 
-func SetCached(cached bool) {
-	root.SetCached(cached)
+func ResetHandler() {
+	root.ResetHandler()
 }
 
-func AddFilter(fi IFilter) {
-	root.AddFilter(fi)
+func SetErrorHandler(h ErrorHandler) {
+	root.SetErrorHandler(h)
 }
 
-func RemoveFilter(fi IFilter) {
-	root.RemoveFilter(fi)
+func EnableCaller(level Level) {
+	root.EnableCaller(level)
 }
 
-func AddHandler(hw IEasyLogHandler) {
-	root.AddHandler(hw)
+func DisableCaller(level Level) {
+	root.DisableCaller(level)
 }
 
-func RemoveHandler(hw IEasyLogHandler) {
-	root.RemoveHandler(hw)
+func EnableStack(level Level) {
+	root.EnableStack(level)
 }
 
-func Debug() *Record {
-	return root.Debug()
+func DisableStack(level Level) {
+	root.DisableStack(level)
 }
 
-func Info() *Record {
-	return root.Info()
+func SetTag(k string, v interface{}) {
+	root.SetTag(k, v)
 }
 
-func Warning() *Record {
-	return root.Warning()
+func DelTag(k string) {
+	root.DelTag(k)
 }
 
-func Warn() *Record {
-	return root.Warn()
+func ResetTag() {
+	root.ResetTag()
 }
 
-func Error() *Record {
-	return root.Error()
+func Tags() map[interface{}]interface{} {
+	return root.Tags()
 }
 
-func Fatal() *Record {
-	return root.Fatal()
+func SetKv(k interface{}, v interface{}) {
+	root.SetKv(k, v)
+}
+
+func DelKv(k interface{}) {
+	root.DelKv(k)
+}
+
+func ResetKv() {
+	root.ResetKv()
+}
+
+func Kvs() map[interface{}]interface{} {
+	return root.Kvs()
+}
+
+func Debug() *Event {
+	return root.log(DEBUG)
+}
+
+func Info() *Event {
+	return root.log(INFO)
+}
+
+func Warn() *Event {
+	return root.log(WARN)
+}
+
+func Error() *Event {
+	return root.log(ERROR)
+}
+
+func Panic() *Event {
+	return root.log(PANIC)
+}
+
+func Fatal() *Event {
+	return root.log(FATAL)
+}
+
+func Flush() {
+	root.Flush()
+}
+
+func Close() {
+	root.Close()
 }

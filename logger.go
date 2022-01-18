@@ -1,239 +1,291 @@
 package easylog
 
-import (
-	"runtime"
-	"sync"
+type Level int8
+
+const (
+	DEBUG Level = iota - 1
+	INFO
+	WARN
+	ERROR
+	PANIC
+	FATAL
+
+	_MIN = DEBUG
+	_MAX = FATAL
 )
 
-type Logger struct {
-	manager        *manager
-	isPlaceholder  bool
-	placeholderMap map[*Logger]interface{}
-
-	name   string
-	parent *Logger
-
-	propagate bool
-
-	level Level
-	stack map[Level]bool
-	Filters
-
-	Handlers
-
-	mu            sync.Mutex
-	cached        bool
-	cachedRecords []*Record
+func (l Level) String() string {
+	switch l {
+	case DEBUG:
+		return "DEBUG"
+	case INFO:
+		return "INFO"
+	case WARN:
+		return "WARN"
+	case ERROR:
+		return "ERROR"
+	case PANIC:
+		return "PANIC"
+	case FATAL:
+		return "FATAL"
+	default:
+		return "UNKNOWN"
+	}
 }
 
-func (l *Logger) SetPropagate(propagate bool) {
-	if l == nil {
-		return
+// logger is not thread safe
+// Make sure to configure the logger before emitting logs,
+// And do not reconfigure the logger during runtime.
+type logger struct {
+	manager     *manager
+	parent      *logger
+	placeholder bool
+	children    map[*logger]struct{}
+
+	name      string
+	propagate bool
+	level     Level
+
+	handlers     []Handler
+	errorHandler ErrorHandler
+
+	caller map[Level]bool
+	stack  map[Level]bool
+
+	tags map[interface{}]interface{}
+	kvs  map[interface{}]interface{}
+}
+
+func newLogger() *logger {
+	return &logger{
+		children:     make(map[*logger]struct{}),
+		handlers:     make([]Handler, 0),
+		errorHandler: NewNopErrorHandler(),
+		caller:       make(map[Level]bool),
+		stack:        make(map[Level]bool),
+		tags:         make(map[interface{}]interface{}),
+		kvs:          make(map[interface{}]interface{}),
 	}
+}
+
+func (l *logger) Name() string {
+	return l.name
+}
+
+func (l *logger) SetPropagate(propagate bool) {
 	l.propagate = propagate
 }
 
-func (l *Logger) SetLevel(level Level) {
-	if l == nil {
-		return
-	}
-	if IsLevel(level) {
-		l.level = level
-	}
+func (l *logger) GetPropagate() bool {
+	return l.propagate
 }
 
-func (l *Logger) GetLevel() Level {
-	if l == nil {
-		return NOTSET
-	}
+func (l *logger) SetLevel(level Level) {
+	l.level = level
+}
+
+func (l *logger) GetLevel() Level {
 	return l.level
 }
 
-func (l *Logger) SetLevelByString(level string) {
-	if l == nil {
+func (l *logger) AddHandler(h Handler) {
+	if h == nil {
 		return
 	}
-	switch level {
-	case "DEBUG":
-		l.level = DEBUG
-	case "INFO":
-		l.level = INFO
-	case "WARN":
-		l.level = WARN
-	case "WARNING":
-		l.level = WARNING
-	case "ERROR":
-		l.level = ERROR
-	case "FATAL":
-		l.level = FATAL
-	default:
+
+	for _, handler := range l.handlers {
+		if handler == h {
+			return
+		}
+	}
+
+	l.handlers = append(l.handlers, h)
+}
+
+func (l *logger) RemoveHandler(h Handler) {
+	if h == nil {
 		return
+	}
+
+	for i, handler := range l.handlers {
+		if handler == h {
+			l.handlers = append(l.handlers[:i], l.handlers[i+1:]...)
+			return
+		}
 	}
 }
 
-func (l *Logger) EnableFrame(level Level) {
-	if l == nil {
-		return
+func (l *logger) ResetHandler() {
+	l.handlers = make([]Handler, 0)
+}
+
+func (l *logger) SetErrorHandler(w ErrorHandler) {
+	l.errorHandler = w
+}
+
+func (l *logger) EnableCaller(level Level) {
+	if level >= _MIN && level <= _MAX {
+		l.caller[level] = true
 	}
-	if IsLevel(level) {
-		if l.stack == nil {
-			l.stack = make(map[Level]bool)
-		}
+}
+
+func (l *logger) DisableCaller(level Level) {
+	if level >= _MIN && level <= _MAX {
+		l.caller[level] = false
+	}
+}
+
+func (l *logger) EnableStack(level Level) {
+	if level >= _MIN && level <= _MAX {
 		l.stack[level] = true
 	}
 }
 
-func (l *Logger) DisableFrame(level Level) {
-	if l == nil {
-		return
-	}
-	if IsLevel(level) {
-		if l.stack == nil {
-			l.stack = make(map[Level]bool)
-		}
+func (l *logger) DisableStack(level Level) {
+	if level >= _MIN && level <= _MAX {
 		l.stack[level] = false
 	}
 }
 
-func (l *Logger) needRecordFrame(level Level) bool {
-	if l.stack == nil {
-		return false
-	}
-	need, ok := l.stack[level]
-	if ok {
-		return need
-	}
-	return false
+func (l *logger) SetTag(k interface{}, v interface{}) {
+	l.tags[k] = v
 }
 
-func (l *Logger) SetCached(cached bool) {
-	if l == nil {
-		return
-	}
-
-	l.cached = cached
+func (l *logger) DelTag(k interface{}) {
+	delete(l.tags, k)
 }
 
-func (l *Logger) Debug() *Record {
-	if l == nil {
-		return nil
-	}
+func (l *logger) ResetTag() {
+	l.tags = make(map[interface{}]interface{})
+}
 
+func (l *logger) Tags() map[interface{}]interface{} {
+	return l.tags
+}
+
+func (l *logger) SetKv(k interface{}, v interface{}) {
+	l.kvs[k] = v
+}
+
+func (l *logger) DelKv(k interface{}) {
+	delete(l.kvs, k)
+}
+
+func (l *logger) ResetKv() {
+	l.kvs = make(map[interface{}]interface{})
+}
+
+func (l *logger) Kvs() map[interface{}]interface{} {
+	return l.kvs
+}
+
+func (l *logger) Debug() *Event {
 	return l.log(DEBUG)
 }
 
-func (l *Logger) Info() *Record {
-	if l == nil {
-		return nil
-	}
-
+func (l *logger) Info() *Event {
 	return l.log(INFO)
 }
 
-func (l *Logger) Warning() *Record {
-	if l == nil {
-		return nil
-	}
-
-	return l.log(WARNING)
-}
-
-func (l *Logger) Warn() *Record {
-	if l == nil {
-		return nil
-	}
-
+func (l *logger) Warn() *Event {
 	return l.log(WARN)
 }
 
-func (l *Logger) Error() *Record {
-	if l == nil {
-		return nil
-	}
-
+func (l *logger) Error() *Event {
 	return l.log(ERROR)
 }
 
-func (l *Logger) Fatal() *Record {
-	if l == nil {
-		return nil
-	}
+func (l *logger) Panic() *Event {
+	return l.log(PANIC)
+}
+
+func (l *logger) Fatal() *Event {
 	return l.log(FATAL)
 }
 
-func (l *Logger) log(level Level) *Record {
+func (l *logger) Flush() {
+	for _, handler := range l.handlers {
+		if err := handler.Flush(); err != nil {
+			// ignore error produced by errorHandler
+			_ = l.errorHandler.Handle(err)
+		}
+	}
+
+	// ignore error produced by errorHandler
+	_ = l.errorHandler.Flush()
+}
+
+func (l *logger) Close() {
+	for _, handler := range l.handlers {
+		if err := handler.Close(); err != nil {
+			// ignore error produced by errorHandler
+			_ = l.errorHandler.Handle(err)
+		}
+	}
+
+	// ignore error produced by errorHandler
+	_ = l.errorHandler.Close()
+}
+
+func (l *logger) logCaller(level Level) bool {
+	if need, ok := l.caller[level]; ok {
+		return need
+	}
+
+	return false
+}
+
+func (l *logger) logStack(level Level) bool {
+	if need, ok := l.stack[level]; ok {
+		return need
+	}
+
+	return false
+}
+
+// couldEnd could end the Logger with panic or os.exit().
+func (l *logger) couldEnd(level Level, v interface{}) {
+	// Note: If there is any level bigger than PANIC added, the logic here should be updated.
+	switch level {
+	case PANIC:
+		l.Flush()
+		panic(v)
+	case FATAL:
+		l.Flush()
+		l.Close()
+		exit(1)
+	}
+}
+
+func (l *logger) log(level Level) *Event {
 	if level < l.level {
+		l.couldEnd(level, "")
+		// No need to generate an Event for and then be handled.
 		return nil
 	}
 
-	record := newRecord()
-	record.Logger = l
-	record.Level = level
-	if l.needRecordFrame(level) {
-		record.PC, record.File, record.Line, record.OK = runtime.Caller(2)
-	}
-
-	return record
+	return newEvent(l, level)
 }
 
-func (l *Logger) handleRecord(record *Record) {
-	if record.Level < l.level {
-		putRecord(record)
+func (l *logger) handle(event *Event) {
+	defer event.Put()
+
+	if event.level < l.level {
 		return
 	}
 
-	if !l.Filters.Filter(record) {
-		putRecord(record)
-		return
-	}
-
-	if l.cached {
-		// 缓存 record
-		l.mu.Lock()
-		defer l.mu.Unlock()
-		if l.cachedRecords == nil {
-			l.cachedRecords = make([]*Record, 0)
+	for _, handler := range l.handlers {
+		next, err := handler.Handle(event)
+		if err != nil {
+			// ignore error produced by errorHandler
+			_ = l.errorHandler.Handle(err)
 		}
-		l.cachedRecords = append(l.cachedRecords, record)
-		return
-	} else {
-		l.Handlers.Handle(record)
-		if l.propagate && l.parent != nil {
-			l.parent.handleRecord(record)
-		} else {
-			putRecord(record)
+		if !next {
+			return
 		}
-		return
-	}
-}
-
-func (l *Logger) Flush() {
-	if l == nil {
-		return
 	}
 
-	if l.cached {
-		l.mu.Lock()
-		defer l.mu.Unlock()
-		for _, record := range l.cachedRecords {
-			l.Handlers.Handle(record)
-			if l.propagate && l.parent != nil {
-				l.parent.handleRecord(record)
-			} else {
-				putRecord(record)
-			}
-		}
-		l.cachedRecords = nil
+	if l.propagate && l.parent != nil {
+		l.parent.handle(event)
 	}
-
-	l.Handlers.Flush()
-}
-
-func (l *Logger) Close() {
-	if l == nil {
-		return
-	}
-
-	l.Flush()
-	l.Handlers.Close()
 }

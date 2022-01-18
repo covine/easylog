@@ -1,185 +1,68 @@
 package easylog
 
-import (
-	"container/list"
-)
-
-type Formatter func(record *Record) string
-
-type IHandler interface {
-	Handle(*Record)
-	Flush()
-	Close()
+// Handler mockery --name=Handler --inpackage --case=underscore --filename=handler_mock.go --structname MockHandler
+type Handler interface {
+	// Handle consumes the Event, determine whether Event should be consumed by the next Handler and parent's Handler.
+	// It returns a decision for the Logger to determine whether to continue handling the Event or not.
+	// And returns an error which will be handled by the Logger's errHandler.
+	// For example,
+	// (true, <error>) means the Event will be consumed by the next Handler.
+	// (false, <error>) means the Event will not be sequentially handled.
+	Handle(*Event) (bool, error)
+	// Flush flushes buffered data (if any).
+	// Handler could have an internal flush() mechanism.
+	// However, in some cases, only Logger knows when to flush().
+	Flush() error
+	// Close releases resources used by Handler. If any buffered data, should flush() before close().
+	Close() error
 }
 
-type IEasyLogHandler interface {
-	IHandler
-	IFilters
-	SetLevel(Level)
-	SetLevelByString(level string)
-	GetLevel() Level
+// ErrorHandler mockery --name=ErrorHandler --inpackage --case=underscore --filename=error_handler_mock.go --structname MockErrorHandler
+type ErrorHandler interface {
+	// Handle consumes the error
+	Handle(error) error
+	// Flush flushes buffered data (if any).
+	// ErrorHandler could have an internal flush() mechanism.
+	// However, in some cases, only Logger knows when to flush().
+	Flush() error
+	// Close releases resources used by ErrorHandler. If any buffered data, should flush() before close().
+	Close() error
 }
 
-// NewEasyLogHandler
-// :eyes: Record will be recycled after being handled, make sure do not cache Record in Handler.
-func NewEasyLogHandler(ih IHandler) IEasyLogHandler {
-	return &handlerWrapper{
-		handler: ih,
-	}
+type nopHandler struct {
 }
 
-type handlerWrapper struct {
-	Filters
-	handler IHandler
-	level   Level
+func NewNopHandler() *nopHandler {
+	return &nopHandler{}
 }
 
-func (h *handlerWrapper) SetLevel(level Level) {
-	if IsLevel(level) {
-		h.level = level
-	}
+func (n *nopHandler) Handle(_ *Event) (bool, error) {
+	return true, nil
 }
 
-func (h *handlerWrapper) SetLevelByString(level string) {
-	switch level {
-	case "DEBUG":
-		h.level = DEBUG
-	case "INFO":
-		h.level = INFO
-	case "WARN":
-		h.level = WARN
-	case "WARNING":
-		h.level = WARNING
-	case "ERROR":
-		h.level = ERROR
-	case "FATAL":
-		h.level = FATAL
-	default:
-		return
-	}
+func (n *nopHandler) Flush() error {
+	return nil
 }
 
-func (h *handlerWrapper) GetLevel() Level {
-	return h.level
+func (n *nopHandler) Close() error {
+	return nil
 }
 
-func (h *handlerWrapper) Handle(record *Record) {
-	if record.Level < h.level {
-		return
-	}
-
-	if !h.Filters.Filter(record) {
-		return
-	}
-
-	if h.handler != nil {
-		h.handler.Handle(record)
-	}
+type nopErrorHandler struct {
 }
 
-func (h *handlerWrapper) Flush() {
-	if h.handler != nil {
-		h.handler.Flush()
-	}
+func (n *nopErrorHandler) Handle(_ error) error {
+	return nil
 }
 
-func (h *handlerWrapper) Close() {
-	if h.handler != nil {
-		h.handler.Close()
-	}
+func NewNopErrorHandler() *nopErrorHandler {
+	return &nopErrorHandler{}
 }
 
-// Handlers
-// not thread safe, set handlers during init
-type Handlers struct {
-	handlers *list.List
+func (n *nopErrorHandler) Flush() error {
+	return nil
 }
 
-func (h *Handlers) AddHandler(hw IEasyLogHandler) {
-	if hw == nil {
-		return
-	}
-
-	if h.handlers == nil {
-		h.handlers = list.New()
-	}
-
-	find := false
-	for ele := h.handlers.Front(); ele != nil; ele = ele.Next() {
-		handler, ok := ele.Value.(IEasyLogHandler)
-		if ok && handler == hw {
-			find = true
-			break
-		}
-	}
-
-	if find {
-		return
-	} else {
-		h.handlers.PushBack(hw)
-	}
-}
-
-func (h *Handlers) RemoveHandler(hw IEasyLogHandler) {
-	if hw == nil {
-		return
-	}
-
-	if h.handlers == nil {
-		h.handlers = list.New()
-	}
-
-	var next *list.Element
-	for ele := h.handlers.Front(); ele != nil; ele = next {
-		next = ele.Next()
-		handler, ok := ele.Value.(IEasyLogHandler)
-		if ok && handler == hw {
-			h.handlers.Remove(ele)
-		}
-	}
-}
-
-func (h *Handlers) HasHandler() bool {
-	if h.handlers == nil {
-		return false
-	} else {
-		return h.handlers.Len() > 0
-	}
-}
-
-func (h *Handlers) Handle(record *Record) {
-	if h.handlers == nil {
-		return
-	}
-
-	for ele := h.handlers.Front(); ele != nil; ele = ele.Next() {
-		handler, ok := ele.Value.(IEasyLogHandler)
-		if ok && handler != nil {
-			handler.Handle(record)
-		}
-	}
-}
-
-func (h *Handlers) Flush() {
-	if h.handlers == nil {
-		return
-	}
-	for ele := h.handlers.Front(); ele != nil; ele = ele.Next() {
-		handler, ok := ele.Value.(IEasyLogHandler)
-		if ok && handler != nil {
-			handler.Flush()
-		}
-	}
-}
-
-func (h *Handlers) Close() {
-	if h.handlers == nil {
-		return
-	}
-	for ele := h.handlers.Front(); ele != nil; ele = ele.Next() {
-		handler, ok := ele.Value.(IEasyLogHandler)
-		if ok && handler != nil {
-			handler.Close()
-		}
-	}
+func (n *nopErrorHandler) Close() error {
+	return nil
 }
