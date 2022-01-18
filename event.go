@@ -162,10 +162,18 @@ func (e *Event) Attach(extra interface{}) *Event {
 }
 
 func (e *Event) Log() {
+	if e == nil {
+		return
+	}
+
 	e.log("", 2)
 }
 
 func (e *Event) Logf(msg string, args ...interface{}) {
+	if e == nil {
+		return
+	}
+
 	if len(args) > 0 {
 		e.log(fmt.Sprintf(msg, args...), 2)
 	} else {
@@ -229,10 +237,6 @@ func (e *Event) Put() {
 }
 
 func (e *Event) log(msg string, skip int) {
-	if e == nil {
-		return
-	}
-
 	e.time = time.Now()
 	e.msg = msg
 
