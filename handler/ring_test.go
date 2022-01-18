@@ -1,52 +1,33 @@
-package handler_test
+package handler
 
 import (
-	"bytes"
-	"fmt"
-	"io/ioutil"
-	"log"
-	"os"
 	"testing"
 	"time"
-	//"github.com/rs/zerolog"
-	//"github.com/rs/zerolog/internal/cbor"
+
+	"github.com/covine/easylog"
+	"github.com/covine/easylog/diode"
+	"github.com/covine/easylog/writer"
+
+	"github.com/stretchr/testify/assert"
 )
 
-func TestNewWriter(t *testing.T) {
-	buf := bytes.Buffer{}
-	w := NewWriter(&buf, 1000, 0, func(missed int) {
-		fmt.Printf("Dropped %d messages\n", missed)
+func BenchmarkRingBufferHandler(b *testing.B) {
+	defer easylog.Flush()
+	defer easylog.Close()
+
+	w, err := writer.NewBufWriter(0, writer.NewStdoutWriter())
+	assert.Nil(b, err)
+
+	rh := NewRingBufferHandler(w, StdFormatter, 165536, diode.AlertFunc(func(int) {}), 100*time.Millisecond)
+
+	easylog.AddHandler(rh)
+	defer easylog.RemoveHandler(rh)
+
+	b.SetParallelism(1000)
+	b.ResetTimer()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			easylog.Info().Logf("buf stdout test")
+		}
 	})
-	log := zerolog.New(w)
-	log.Print("test")
-
-	w.Close()
-	want := "{\"level\":\"debug\",\"message\":\"test\"}\n"
-	got := cbor.DecodeIfBinaryToString(buf.Bytes())
-	if got != want {
-		t.Errorf("Diode New Writer Test failed. got:%s, want:%s!", got, want)
-	}
-}
-
-func Benchmark(b *testing.B) {
-	log.SetOutput(ioutil.Discard)
-	defer log.SetOutput(os.Stderr)
-	benchs := map[string]time.Duration{
-		"Waiter": 0,
-		"Pooler": 10 * time.Millisecond,
-	}
-	for name, interval := range benchs {
-		b.Run(name, func(b *testing.B) {
-			w := NewWriter(ioutil.Discard, 100000, interval, nil)
-			log := zerolog.New(w)
-			defer w.Close()
-
-			b.SetParallelism(1000)
-			b.RunParallel(func(pb *testing.PB) {
-				for pb.Next() {
-					log.Print("test")
-				}
-			})
-		})
-	}
 }

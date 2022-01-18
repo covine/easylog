@@ -50,56 +50,63 @@ func StdFormatter(e *easylog.Event) ([]byte, error) {
 	level := e.GetLevel()
 	switch level {
 	case easylog.DEBUG:
-		buf.WriteString(level.String())
-		buf.WriteString("  ")
+		buf.WriteString(White + level.String() + "  " + Reset)
 	case easylog.INFO:
-		buf.WriteString(level.String())
-		buf.WriteString("   ")
+		buf.WriteString(Green + level.String() + "   " + Reset)
 	case easylog.WARN:
-		buf.WriteString(Yellow)
-		buf.WriteString(level.String())
-		buf.WriteString("   ")
-		buf.WriteString(Reset)
+		buf.WriteString(Purple + level.String() + "   " + Reset)
 	case easylog.ERROR:
 		fallthrough
 	case easylog.PANIC:
 		fallthrough
 	case easylog.FATAL:
-		buf.WriteString(Red)
-		buf.WriteString(level.String())
-		buf.WriteString("  ")
-		buf.WriteString(Reset)
+		buf.WriteString(Red + level.String() + "  " + Reset)
 	default:
-		buf.WriteString("UNKNOWN")
+		buf.WriteString(Gray + "UNKNOWN" + Reset)
 	}
 
-	buf.WriteString(": ")
+	buf.WriteString(Blue)
 	buf.WriteString(time.Now().Format("2006-01-02 15:04:05"))
-	buf.WriteString(" *")
-	buf.WriteString(" logger: ")
-	buf.WriteString(e.GetLogger().Name())
-	buf.WriteString(" *")
+	buf.WriteString(Reset)
+
+	buf.WriteString(" ")
+
+	buf.WriteString(GrayBlack)
+	if e.GetLogger().Name() == "" {
+		buf.WriteString("root")
+	} else {
+		buf.WriteString(e.GetLogger().Name())
+	}
+	buf.WriteString(Reset)
 
 	if e.GetCaller().GetOK() {
 		buf.WriteString(" ")
+		buf.WriteString(YellowBlue)
 		buf.WriteString(path.Base(e.GetCaller().GetFile()))
+		buf.WriteString(Reset)
 		buf.WriteString(" ")
 		f := strings.Split(e.GetCaller().GetFunc(), ".")
 		if len(f) > 0 {
+			buf.WriteString(BlackGray)
 			buf.WriteString(f[len(f)-1])
+			buf.WriteString(Reset)
 			buf.WriteString(" ")
 		}
+		buf.WriteString(Red)
 		buf.WriteString("[")
 		buf.WriteString(strconv.Itoa(e.GetCaller().GetLine()))
 		buf.WriteString("]")
-		buf.WriteString(" *")
+		buf.WriteString(Reset)
 	}
 
 	buf.WriteString(" ")
+
+	buf.WriteString(Cyan)
 	buf.WriteString(e.GetMsg())
+	buf.WriteString(Reset)
 
 	if len(e.GetStack()) > 0 {
-		buf.WriteString(" stack: \n")
+		buf.WriteString("\n")
 		buf.WriteString(e.GetStack())
 	}
 

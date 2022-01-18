@@ -478,6 +478,7 @@ func TestFatalWithLevelINFO(t *testing.T) {
 	e.On("Handle", mock.MatchedBy(func(err error) bool {
 		return err.Error() == "h close error"
 	})).Once().Return(nil)
+	e.On("Flush").Return(nil)
 	e.On("Close").Return(errors.New("e close error"))
 	SetErrorHandler(e)
 
@@ -487,10 +488,11 @@ func TestFatalWithLevelINFO(t *testing.T) {
 			e.caller.pc == 0 && e.caller.file == "" && e.caller.line == 0 && e.caller.ok == false &&
 			e.time.Second() > 0
 	})).Once().Return(false, errors.New("h handle error"))
+	h.On("Flush").Return(nil)
 	h.On("Close").Return(errors.New("h close error"))
 	AddHandler(h)
 
-	Fatal().Logf("1")
+	Fatal().Logf("%d", 1)
 
 	assert.Equal(t, 1, f.code())
 	h.AssertExpectations(t)
@@ -510,11 +512,13 @@ func TestFatalWithHighThanINFOLevel(t *testing.T) {
 	e.On("Handle", mock.MatchedBy(func(err error) bool {
 		return err.Error() == "h close error"
 	})).Once().Return(nil)
+	e.On("Flush").Return(nil)
 	e.On("Close").Return(errors.New("e close error"))
 	SetErrorHandler(e)
 
 	h := &MockHandler{}
 	h.On("Close").Return(errors.New("h close error"))
+	h.On("Flush").Return(nil)
 	AddHandler(h)
 
 	Fatal().Logf("1")

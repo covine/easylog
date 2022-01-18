@@ -166,7 +166,11 @@ func (e *Event) Log() {
 }
 
 func (e *Event) Logf(msg string, args ...interface{}) {
-	e.log(fmt.Sprintf(msg, args...), 2)
+	if len(args) > 0 {
+		e.log(fmt.Sprintf(msg, args...), 2)
+	} else {
+		e.log(msg, 2)
+	}
 }
 
 func (e *Event) GetLogger() *logger {

@@ -251,6 +251,7 @@ func (l *logger) couldEnd(level Level, v interface{}) {
 		l.Flush()
 		panic(v)
 	case FATAL:
+		l.Flush()
 		l.Close()
 		exit(1)
 	}

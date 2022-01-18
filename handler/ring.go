@@ -6,7 +6,11 @@ import (
 
 	"github.com/covine/easylog"
 	"github.com/covine/easylog/diode"
+	"github.com/covine/easylog/writer"
 )
+
+type Next func(*easylog.Event) (bool, error)
+type Handle func(*easylog.Event) error
 
 type Puller interface {
 	diode.Diode
@@ -14,29 +18,25 @@ type Puller interface {
 	Next() diode.GenericDataType
 }
 
-type Next func(*easylog.Event) (bool, error)
-type Handle func(*easylog.Event) error
-
-// RingBufferHandler is a Ring Buffer Handler
 type RingBufferHandler struct {
-	next   Next
-	handle Handle
 	diode  diode.Diode
 	puller Puller
 	cancel context.CancelFunc
 	done   chan struct{}
+	format Formatter
+	w      *writer.BufWriter
 }
 
-func RingBufferWrap(
-	next Next, handle Handle, size int, alert diode.AlertFunc, pullInterval time.Duration,
-) easylog.Handler {
+func NewRingBufferHandler(
+	w *writer.BufWriter, f Formatter, size int, alert diode.AlertFunc, pullInterval time.Duration,
+) *RingBufferHandler {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	r := &RingBufferHandler{
-		next:   next,
-		handle: handle,
 		cancel: cancel,
 		done:   make(chan struct{}),
+		w:      w,
+		format: f,
 	}
 
 	d := diode.NewManyToOne(size, alert)
@@ -61,21 +61,11 @@ func RingBufferWrap(
 
 func (r *RingBufferHandler) Handle(e *easylog.Event) (bool, error) {
 	r.puller.Set(diode.GenericDataType(e.Clone()))
-	return r.next(e)
+	return true, nil
 }
 
 func (r *RingBufferHandler) Flush() error {
-	for {
-		data, ok := r.ringBuffer.TryNext()
-		if !ok {
-			return nil
-		}
-
-		e := (*easylog.Event)(data)
-		// TODO handle event
-		// TODO putEvent
-		println(e)
-	}
+	return nil
 }
 
 func (r *RingBufferHandler) Close() error {
@@ -95,11 +85,26 @@ func (r *RingBufferHandler) pull() {
 		}
 
 		e := (*easylog.Event)(d)
-		err := r.handle(e)
+
+		b, err := r.format(e)
 		if err != nil {
-			// TODO errHandler
+			// TODO err handle
 			e.Put()
+			continue
 		}
+
+		if _, err := r.w.Write(b); err != nil {
+			// TODO err handle
+			e.Put()
+			continue
+		}
+
+		if _, err := r.w.WriteString("\n"); err != nil {
+			// TODO err handle
+			e.Put()
+			continue
+		}
+
 		e.Put()
 	}
 }
