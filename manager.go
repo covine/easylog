@@ -7,11 +7,11 @@ import (
 
 type manager struct {
 	mu        sync.RWMutex
-	root      *logger
-	loggerMap map[string]*logger
+	root      *Logger
+	loggerMap map[string]*Logger
 }
 
-func (m *manager) getLogger(name string) *logger {
+func (m *manager) getLogger(name string) *Logger {
 	m.mu.RLock()
 	if l, ok := m.loggerMap[name]; ok && l != nil && !l.placeholder {
 		m.mu.RUnlock()
@@ -43,10 +43,10 @@ func (m *manager) getLogger(name string) *logger {
 	}
 }
 
-func (m *manager) fixUpParents(l *logger) {
+func (m *manager) fixUpParents(l *Logger) {
 	name := l.name
 	i := strings.LastIndexByte(name, '.')
-	var rv *logger = nil
+	var rv *Logger = nil
 
 	for {
 		if i < 0 || rv != nil {
@@ -77,7 +77,7 @@ func (m *manager) fixUpParents(l *logger) {
 	l.parent = rv
 }
 
-func (m *manager) fixUpChildren(placeholder *logger, l *logger) {
+func (m *manager) fixUpChildren(placeholder *Logger, l *Logger) {
 	for c := range placeholder.children {
 		if !strings.HasPrefix(c.parent.name, l.name) {
 			l.parent = c.parent

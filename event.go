@@ -77,7 +77,7 @@ func (c *caller) GetFunc() string {
 }
 
 type Event struct {
-	logger *logger
+	logger *Logger
 
 	time  time.Time
 	level Level
@@ -96,7 +96,7 @@ var _eventPool = &sync.Pool{
 	},
 }
 
-func newEvent(logger *logger, level Level) *Event {
+func newEvent(logger *Logger, level Level) *Event {
 	r := _eventPool.Get().(*Event)
 
 	r.logger = logger
@@ -173,7 +173,7 @@ func (e *Event) Logf(msg string, args ...interface{}) {
 	}
 }
 
-func (e *Event) GetLogger() *logger {
+func (e *Event) GetLogger() *Logger {
 	return e.logger
 }
 

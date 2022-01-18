@@ -1,11 +1,11 @@
 package easylog
 
 var m *manager
-var root *logger
+var root *Logger
 
 func init() {
 	m = &manager{
-		loggerMap: make(map[string]*logger),
+		loggerMap: make(map[string]*Logger),
 	}
 
 	root = m.getLogger("")
@@ -13,12 +13,12 @@ func init() {
 	m.root = root
 }
 
-func GetLogger(name string) *logger {
+func GetLogger(name string) *Logger {
 	return m.getLogger(name)
 }
 
 // GetRootLogger is equivalent to GetLogger("")
-func GetRootLogger() *logger {
+func GetRootLogger() *Logger {
 	return m.getLogger("")
 }
 

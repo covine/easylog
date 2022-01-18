@@ -33,14 +33,14 @@ func (l Level) String() string {
 	}
 }
 
-// logger is not thread safe
-// Make sure to configure the logger before emitting logs,
-// And do not reconfigure the logger during runtime.
-type logger struct {
+// Logger is not thread safe
+// Make sure to configure the Logger before emitting logs,
+// And do not reconfigure the Logger during runtime.
+type Logger struct {
 	manager     *manager
-	parent      *logger
+	parent      *Logger
 	placeholder bool
-	children    map[*logger]struct{}
+	children    map[*Logger]struct{}
 
 	name      string
 	propagate bool
@@ -56,9 +56,9 @@ type logger struct {
 	kvs  map[interface{}]interface{}
 }
 
-func newLogger() *logger {
-	return &logger{
-		children:     make(map[*logger]struct{}),
+func newLogger() *Logger {
+	return &Logger{
+		children:     make(map[*Logger]struct{}),
 		handlers:     make([]Handler, 0),
 		errorHandler: NewNopErrorHandler(),
 		caller:       make(map[Level]bool),
@@ -68,27 +68,27 @@ func newLogger() *logger {
 	}
 }
 
-func (l *logger) Name() string {
+func (l *Logger) Name() string {
 	return l.name
 }
 
-func (l *logger) SetPropagate(propagate bool) {
+func (l *Logger) SetPropagate(propagate bool) {
 	l.propagate = propagate
 }
 
-func (l *logger) GetPropagate() bool {
+func (l *Logger) GetPropagate() bool {
 	return l.propagate
 }
 
-func (l *logger) SetLevel(level Level) {
+func (l *Logger) SetLevel(level Level) {
 	l.level = level
 }
 
-func (l *logger) GetLevel() Level {
+func (l *Logger) GetLevel() Level {
 	return l.level
 }
 
-func (l *logger) AddHandler(h Handler) {
+func (l *Logger) AddHandler(h Handler) {
 	if h == nil {
 		return
 	}
@@ -102,7 +102,7 @@ func (l *logger) AddHandler(h Handler) {
 	l.handlers = append(l.handlers, h)
 }
 
-func (l *logger) RemoveHandler(h Handler) {
+func (l *Logger) RemoveHandler(h Handler) {
 	if h == nil {
 		return
 	}
@@ -115,95 +115,95 @@ func (l *logger) RemoveHandler(h Handler) {
 	}
 }
 
-func (l *logger) ResetHandler() {
+func (l *Logger) ResetHandler() {
 	l.handlers = make([]Handler, 0)
 }
 
-func (l *logger) SetErrorHandler(w ErrorHandler) {
+func (l *Logger) SetErrorHandler(w ErrorHandler) {
 	l.errorHandler = w
 }
 
-func (l *logger) EnableCaller(level Level) {
+func (l *Logger) EnableCaller(level Level) {
 	if level >= _MIN && level <= _MAX {
 		l.caller[level] = true
 	}
 }
 
-func (l *logger) DisableCaller(level Level) {
+func (l *Logger) DisableCaller(level Level) {
 	if level >= _MIN && level <= _MAX {
 		l.caller[level] = false
 	}
 }
 
-func (l *logger) EnableStack(level Level) {
+func (l *Logger) EnableStack(level Level) {
 	if level >= _MIN && level <= _MAX {
 		l.stack[level] = true
 	}
 }
 
-func (l *logger) DisableStack(level Level) {
+func (l *Logger) DisableStack(level Level) {
 	if level >= _MIN && level <= _MAX {
 		l.stack[level] = false
 	}
 }
 
-func (l *logger) SetTag(k interface{}, v interface{}) {
+func (l *Logger) SetTag(k interface{}, v interface{}) {
 	l.tags[k] = v
 }
 
-func (l *logger) DelTag(k interface{}) {
+func (l *Logger) DelTag(k interface{}) {
 	delete(l.tags, k)
 }
 
-func (l *logger) ResetTag() {
+func (l *Logger) ResetTag() {
 	l.tags = make(map[interface{}]interface{})
 }
 
-func (l *logger) Tags() map[interface{}]interface{} {
+func (l *Logger) Tags() map[interface{}]interface{} {
 	return l.tags
 }
 
-func (l *logger) SetKv(k interface{}, v interface{}) {
+func (l *Logger) SetKv(k interface{}, v interface{}) {
 	l.kvs[k] = v
 }
 
-func (l *logger) DelKv(k interface{}) {
+func (l *Logger) DelKv(k interface{}) {
 	delete(l.kvs, k)
 }
 
-func (l *logger) ResetKv() {
+func (l *Logger) ResetKv() {
 	l.kvs = make(map[interface{}]interface{})
 }
 
-func (l *logger) Kvs() map[interface{}]interface{} {
+func (l *Logger) Kvs() map[interface{}]interface{} {
 	return l.kvs
 }
 
-func (l *logger) Debug() *Event {
+func (l *Logger) Debug() *Event {
 	return l.log(DEBUG)
 }
 
-func (l *logger) Info() *Event {
+func (l *Logger) Info() *Event {
 	return l.log(INFO)
 }
 
-func (l *logger) Warn() *Event {
+func (l *Logger) Warn() *Event {
 	return l.log(WARN)
 }
 
-func (l *logger) Error() *Event {
+func (l *Logger) Error() *Event {
 	return l.log(ERROR)
 }
 
-func (l *logger) Panic() *Event {
+func (l *Logger) Panic() *Event {
 	return l.log(PANIC)
 }
 
-func (l *logger) Fatal() *Event {
+func (l *Logger) Fatal() *Event {
 	return l.log(FATAL)
 }
 
-func (l *logger) Flush() {
+func (l *Logger) Flush() {
 	for _, handler := range l.handlers {
 		if err := handler.Flush(); err != nil {
 			// ignore error produced by errorHandler
@@ -215,7 +215,7 @@ func (l *logger) Flush() {
 	_ = l.errorHandler.Flush()
 }
 
-func (l *logger) Close() {
+func (l *Logger) Close() {
 	for _, handler := range l.handlers {
 		if err := handler.Close(); err != nil {
 			// ignore error produced by errorHandler
@@ -227,7 +227,7 @@ func (l *logger) Close() {
 	_ = l.errorHandler.Close()
 }
 
-func (l *logger) logCaller(level Level) bool {
+func (l *Logger) logCaller(level Level) bool {
 	if need, ok := l.caller[level]; ok {
 		return need
 	}
@@ -235,7 +235,7 @@ func (l *logger) logCaller(level Level) bool {
 	return false
 }
 
-func (l *logger) logStack(level Level) bool {
+func (l *Logger) logStack(level Level) bool {
 	if need, ok := l.stack[level]; ok {
 		return need
 	}
@@ -244,7 +244,7 @@ func (l *logger) logStack(level Level) bool {
 }
 
 // couldEnd could end the Logger with panic or os.exit().
-func (l *logger) couldEnd(level Level, v interface{}) {
+func (l *Logger) couldEnd(level Level, v interface{}) {
 	// Note: If there is any level bigger than PANIC added, the logic here should be updated.
 	switch level {
 	case PANIC:
@@ -257,7 +257,7 @@ func (l *logger) couldEnd(level Level, v interface{}) {
 	}
 }
 
-func (l *logger) log(level Level) *Event {
+func (l *Logger) log(level Level) *Event {
 	if level < l.level {
 		l.couldEnd(level, "")
 		// No need to generate an Event for and then be handled.
@@ -267,7 +267,7 @@ func (l *logger) log(level Level) *Event {
 	return newEvent(l, level)
 }
 
-func (l *logger) handle(event *Event) {
+func (l *Logger) handle(event *Event) {
 	defer event.Put()
 
 	if event.level < l.level {
