@@ -180,27 +180,34 @@ func (l *Logger) Kvs() map[interface{}]interface{} {
 }
 
 func (l *Logger) Debug() *Event {
-	return l.log(DEBUG)
+	return l.log(DEBUG, nil)
 }
 
 func (l *Logger) Info() *Event {
-	return l.log(INFO)
+	return l.log(INFO, nil)
 }
 
 func (l *Logger) Warn() *Event {
-	return l.log(WARN)
+	return l.log(WARN, nil)
 }
 
 func (l *Logger) Error() *Event {
-	return l.log(ERROR)
+	return l.log(ERROR, nil)
 }
 
 func (l *Logger) Panic() *Event {
-	return l.log(PANIC)
+	return l.log(PANIC, func(v interface{}) {
+		l.Flush()
+		panic(v)
+	})
 }
 
 func (l *Logger) Fatal() *Event {
-	return l.log(FATAL)
+	return l.log(FATAL, func(v interface{}) {
+		l.Flush()
+		l.Close()
+		exit(1)
+	})
 }
 
 func (l *Logger) Flush() {
@@ -257,10 +264,11 @@ func (l *Logger) couldEnd(level Level, v interface{}) {
 	}
 }
 
-func (l *Logger) log(level Level) *Event {
+func (l *Logger) log(level Level, done func(interface{})) *Event {
 	if level < l.level {
-		l.couldEnd(level, "")
-		// No need to generate an Event for and then be handled.
+		if done != nil {
+			done("")
+		}
 		return nil
 	}
 

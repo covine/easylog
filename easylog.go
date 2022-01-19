@@ -95,27 +95,34 @@ func Kvs() map[interface{}]interface{} {
 }
 
 func Debug() *Event {
-	return root.log(DEBUG)
+	return root.log(DEBUG, nil)
 }
 
 func Info() *Event {
-	return root.log(INFO)
+	return root.log(INFO, nil)
 }
 
 func Warn() *Event {
-	return root.log(WARN)
+	return root.log(WARN, nil)
 }
 
 func Error() *Event {
-	return root.log(ERROR)
+	return root.log(ERROR, nil)
 }
 
 func Panic() *Event {
-	return root.log(PANIC)
+	return root.log(PANIC, func(v interface{}) {
+		root.Flush()
+		panic(v)
+	})
 }
 
 func Fatal() *Event {
-	return root.log(FATAL)
+	return root.log(FATAL, func(v interface{}) {
+		root.Flush()
+		root.Close()
+		exit(1)
+	})
 }
 
 func Flush() {
