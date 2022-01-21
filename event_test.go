@@ -1,6 +1,7 @@
 package easylog
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
@@ -11,7 +12,7 @@ func TestNilEvent(t *testing.T) {
 	var e *Event = nil
 	assert.NotPanics(t, func() {
 		e.Tag("t", "v").Attach(nil).Log()
-		e.Kv("k", "v").Logf("")
+		e.Kv("k", "v").E(nil).Logf("")
 	})
 }
 
@@ -29,10 +30,12 @@ func TestEventWithNilLogger(t *testing.T) {
 		e.Tag("t", "v").Attach(nil)
 		e.Kv("k", "v").Attach(nil)
 		e.Attach(1)
+		e.E(errors.New("error"))
 	})
 
 	assert.Equal(t, 1, e.GetExtra())
 	assert.Equal(t, "", e.GetMsg())
+	assert.Equal(t, "error", e.GetError().Error())
 
 	assert.Equal(t, "v", e.GetTags()["t"])
 	assert.Equal(t, "v", e.GetKvs()["k"])

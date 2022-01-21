@@ -84,6 +84,7 @@ type Event struct {
 	tags  map[interface{}]interface{}
 	kvs   map[interface{}]interface{}
 	msg   string
+	e     error
 	extra interface{}
 
 	caller caller
@@ -106,6 +107,7 @@ func newEvent(logger *Logger, level Level) *Event {
 	r.tags = nil
 	r.kvs = nil
 	r.msg = ""
+	r.e = nil
 	r.extra = nil
 
 	r.caller.ok = false
@@ -157,6 +159,16 @@ func (e *Event) Attach(extra interface{}) *Event {
 	}
 
 	e.extra = extra
+
+	return e
+}
+
+func (e *Event) E(err error) *Event {
+	if e == nil {
+		return e
+	}
+
+	e.e = err
 
 	return e
 }
@@ -213,6 +225,10 @@ func (e *Event) GetExtra() interface{} {
 	return e.extra
 }
 
+func (e *Event) GetError() error {
+	return e.e
+}
+
 func (e *Event) Clone() *Event {
 	r := _eventPool.Get().(*Event)
 
@@ -223,6 +239,7 @@ func (e *Event) Clone() *Event {
 	r.tags = e.tags
 	r.kvs = e.kvs
 	r.msg = e.msg
+	r.e = e.e
 	r.extra = e.extra
 
 	r.caller = e.caller
